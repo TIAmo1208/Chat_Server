@@ -1,0 +1,98 @@
+/**
+ * @file Log.h
+ * @author Sun Qiuming (qiuming.sun@external.marelli.com)
+ * @brief 
+ * @version 0.1
+ * @date 2022-10-28
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
+#ifndef __LOG_H__
+#define __LOG_H__
+
+#include <iostream>
+#include <fstream>
+#include <time.h> // time txt
+#include <cstring>
+#include <stdarg.h> // parameter list
+#include <unistd.h> // check path 、 pwd
+
+namespace Log
+{
+#define LOG_FILE_PATH "Log_Project_Log"
+#define TYPE_LOG_DEBUG "LOG_DEBUG"
+#define TYPE_LOG_INFO "LOG_INFO"
+#define TYPE_LOG_ERROR "LOG_ERROR"
+#define TYPE_LOG_WARN "LOG_WARN"
+#define TYPE_LOG_FATAL "LOG_FATAL"
+
+#define Log_debug(format, ...) (*LogSystem::instance())(__FILE__, __LINE__, TYPE_LOG_DEBUG, format, ##__VA_ARGS__)
+#define Log_info(format, ...) LogSystem::instance()->log_info(format, ##__VA_ARGS__)
+#define Log_error(format, ...) (*LogSystem::instance())(__FILE__, __LINE__, TYPE_LOG_ERROR, format, ##__VA_ARGS__)
+#define Log_warn(format, ...) (*LogSystem::instance())(__FILE__, __LINE__, TYPE_LOG_WARN, format, ##__VA_ARGS__)
+#define Log_fatal(format, ...) (*LogSystem::instance())(__FILE__, __LINE__, TYPE_LOG_FATAL, format, ##__VA_ARGS__)
+
+    class LogSystem
+    {
+    public:
+        // return ptr of the log system
+        // The Log_init function needs to be called first
+        static LogSystem *instance();
+
+        // init
+        void Log_init(std::string filePath = LOG_FILE_PATH);
+
+    public:
+        // print debug into the screan
+        bool log_debug(const char *pLogFormat, ...);
+        // print info into the screan
+        bool log_info(const char *pLogFormat, ...);
+        // print error into the screan
+        bool log_error(const char *pLogFormat, ...);
+        // print warn into the screan
+        bool log_warn(const char *pLogFormat, ...);
+        // print fatal into the screan
+        bool log_fatal(const char *pLogFormat, ...);
+
+        // write into the log file without time and log type
+        void Log_write(const char *pLogFormat);
+        // read and print the log file
+        void Log_print_logfile();
+
+        // set enable output file
+        void Log_setOutputFile(bool state) { m_outputFile = state; }
+        // set file path
+        void Log_setFilePath(std::string filePath) { m_filePath = filePath; }
+
+        //
+        void operator()(const char *file, const int line, const char *logType, const char *pLogFormat, ...);
+
+    private:
+        LogSystem(bool outputFile = true);
+
+    public:
+        ~LogSystem()
+        {
+            char path[255];
+            if (NULL != getcwd(path, 255))
+                printf("\nyou can see the Log file in the %s/%s\n", path, m_logFileName.c_str());
+
+            if (m_WriteStream.is_open())
+            {
+                m_WriteStream.close();
+            }
+        }
+
+    private:
+        /* data */
+        static LogSystem *m_logSystem; // log system ptr
+        bool m_outputFile;             // write into file
+        std::string m_filePath = LOG_FILE_PATH;
+        std::string m_logFileName;
+        std::ofstream m_WriteStream;
+        bool m_initState = false; // true when init is done
+    };
+}
+
+#endif // __LOG_H__
