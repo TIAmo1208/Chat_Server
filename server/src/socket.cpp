@@ -8,7 +8,14 @@
  * @copyright Copyright (c) 2022
  *
  */
+
+/*______ I N C L U D E - F I L E S ___________________________________________*/
+
 #include "socket.h"
+
+#define VERSION (0.2)
+
+/*______ F U N C T I O N _____________________________________________________*/
 
 Socket::Socket()
 {
@@ -46,10 +53,11 @@ void Socket::socket_accept()
 
 int Socket::socket_Init()
 {
+    Log_info("---- Chat Server\tversion:%0.2f ----", VERSION);
     int ret = 0;
 
     // socket
-    Log_info("START: init");
+    Log_debug("Server: init");
     ret = socket(m_domain, m_type, m_protocol);
     if (SOCKET_ERROR == ret)
     {
@@ -63,7 +71,7 @@ int Socket::socket_Init()
     // fcntl(m_socket_listen, F_SETFL, flags | O_NONBLOCK);
 
     // bind
-    Log_info("START: bind");
+    Log_debug("Server: bind");
     sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(m_port);
@@ -76,7 +84,7 @@ int Socket::socket_Init()
     }
 
     // listen
-    Log_info("START: listen (port:%d) ...", m_port);
+    Log_info("Server: listen (port:%d) ...", m_port);
     ret = listen(m_socket_listen, 5);
     if (SOCKET_ERROR == ret)
     {
@@ -84,7 +92,7 @@ int Socket::socket_Init()
         return ret;
     }
 
-    Log_info("DONE: socket init 127.0.0.1:%d", m_port);
+    Log_debug("DONE: socket init 127.0.0.1:%d", m_port);
 
     return 1;
 }

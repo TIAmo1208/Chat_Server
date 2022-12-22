@@ -8,11 +8,16 @@
  * @copyright Copyright (c) 2022
  *
  */
+
+/*______ I N C L U D E - F I L E S ___________________________________________*/
+
 #include "Log.h"
 
 using namespace Log;
 
 LogSystem *LogSystem::m_logSystem = nullptr;
+
+/*______ F U N C T I O N _____________________________________________________*/
 
 // generate log txt
 char *setLogTxt(const char *logLevel, const char *pLogFormat)

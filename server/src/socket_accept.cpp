@@ -9,16 +9,24 @@
  *
  */
 
+/*______ I N C L U D E - F I L E S ___________________________________________*/
+
 #include "socket_accept.h"
 
+/*______ D E F I N E _________________________________________________________*/
+
+// heatbeat packet enable
 // #define START_HEATBEAT_PACKET
 
+// message process
 #define CODE_CONNECT_SERVER 0x0000
 #define CODE_CONNECT_CLIENT 0x0001
 #define CODE_SEND_MESSAGE 0x0002
-#define CODE_SERVER_RECV_ERROR 0xe001
+#define CODE_SERVER_RECV_ERROR "0xe001"
 
-#define SOCKET_ERROR_RECV(target) send(target, (char *)CODE_SERVER_RECV_ERROR, sizeof((char *)CODE_SERVER_RECV_ERROR), 0);
+#define SOCKET_ERROR_RECV(target) send(target, CODE_SERVER_RECV_ERROR, sizeof(CODE_SERVER_RECV_ERROR), 0);
+
+/*______ F U N C T I O N _____________________________________________________*/
 
 int convert_hexChar_to_int(char *str);
 
@@ -70,7 +78,7 @@ void Socket_accept::SocketAccept_socket_accept(int listen)
 
 void Socket_accept::SocketAccept_accept_client(int listen)
 {
-    Log_info("START: accept...");
+    Log_info("Server: accept...");
     while (!m_TerminateFlag)
     {
         int connect = accept(listen, (sockaddr *)&m_clientAddr, &m_clientAddrLen);
@@ -106,15 +114,15 @@ bool Socket_accept::SocketAccept_recvMessage(int clientSocket, char *clientIP, i
 {
     char recvBuff[BUFF_MAX_SIZE];
     std::string str_messageProcess;
-    int messageType = 0;
     s_user_Information user;
     std::stringstream sstream;
+    int messageType;
 
     while (true)
     {
         memset(recvBuff, 0, BUFF_MAX_SIZE);
 
-        // It will be close when recv return the message's length is 0
+        // It will be close when recv the feel back message's length is 0
         if (recv(clientSocket, recvBuff, BUFF_MAX_SIZE, 0) == 0)
         {
             m_client_list.erase(clientSocket);
@@ -140,17 +148,6 @@ bool Socket_accept::SocketAccept_recvMessage(int clientSocket, char *clientIP, i
             str_messageProcess = str_messageProcess.substr(6, str_messageProcess.length());
             if (messageType == CODE_CONNECT_SERVER)
             {
-                // char tmp_userID[BUFF_MAX_SIZE];
-                // memset(tmp_userID, 0, BUFF_MAX_SIZE);
-
-                // recv error
-                // if (recv(clientSocket, tmp_userID, BUFF_MAX_SIZE, 0) == 0)
-                // {
-                //     Log_warn("Message receiving error");
-                //     SOCKET_ERROR_RECV(user.socket);
-                //     continue;
-                // }
-
                 //// TODO : 数据处理，检验 userID 是否正确
                 //// TODO : 获取数据库，验证 用户密码 是否正确
 
@@ -164,33 +161,13 @@ bool Socket_accept::SocketAccept_recvMessage(int clientSocket, char *clientIP, i
             }
             else if (messageType == CODE_CONNECT_CLIENT)
             {
-                // char tmp_connectID[BUFF_MAX_SIZE];
-                // memset(tmp_connectID, 0, BUFF_MAX_SIZE);
-
-                // // recv error
-                // if (recv(clientSocket, tmp_connectID, BUFF_MAX_SIZE, 0) == 0)
-                // {
-                //     Log_warn("Message receiving error");
-                //     SOCKET_ERROR_RECV(user.socket);
-                //     continue;
-                // }
-
+                //// TODO : 数据处理，检验 userID 是否正确
+                
                 user.Connect_UserID = str_messageProcess;
                 Log_info("code : %s:%d connect client %s:%d", user.IP.c_str(), user.port, users[user.Connect_UserID].IP.c_str(), users[user.Connect_UserID].port);
             }
             else if (messageType == CODE_SEND_MESSAGE)
             {
-                // char tmp_sendMsg[BUFF_MAX_SIZE];
-                // memset(tmp_sendMsg, 0, BUFF_MAX_SIZE);
-
-                // // recv error
-                // if (recv(clientSocket, tmp_sendMsg, BUFF_MAX_SIZE, 0) == 0)
-                // {
-                //     Log_warn("Message receiving error");
-                //     SOCKET_ERROR_RECV(user.socket);
-                //     continue;
-                // }
-
                 if (user.Connect_UserID == "" || users[user.Connect_UserID].socket == -1)
                 {
                     Log_warn("send message : It is not set the connect client ");
@@ -200,13 +177,12 @@ bool Socket_accept::SocketAccept_recvMessage(int clientSocket, char *clientIP, i
 
                 Log_info("code : %s:%d send message to %s:%d", user.IP.c_str(), user.port, users[user.Connect_UserID].IP.c_str(), users[user.Connect_UserID].port);
             }
-            else if (messageType == 0x1000)
-            {
-                Log_info("0x1000");
-            }
             else
             {
-                Log_info("Unknow code !!!");
+                // char temp[] = CODE_SERVER_RECV_ERROR;
+                // send(user.socket, temp, sizeof(temp), 0);
+                SOCKET_ERROR_RECV(user.socket);
+                Log_info("Unknow code !!! cod : %d", messageType);
             }
         }
     }

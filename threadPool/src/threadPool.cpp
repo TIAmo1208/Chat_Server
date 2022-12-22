@@ -9,7 +9,11 @@
  *
  */
 
+/*______ I N C L U D E - F I L E S ___________________________________________*/
+
 #include "threadPool.h"
+
+/*______ F U N C T I O N _____________________________________________________*/
 
 ThreadPool::ThreadPool(int threads)
 {

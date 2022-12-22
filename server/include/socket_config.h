@@ -12,6 +12,8 @@
 #ifndef __SOCKET_I_H__
 #define __SOCKET_I_H__
 
+/*______ D E F I N E _________________________________________________________*/
+
 #define LINUX
 
 // socket config
