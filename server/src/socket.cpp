@@ -14,15 +14,22 @@ Socket::Socket()
 {
     LogSystem::instance()->Log_init("Log_Rtouch");
 
-    socket_Init();
+    if (socket_Init() != 1)
+    {
+        return;
+    }
 }
 
 Socket::Socket(int port, int domain, int type, int protocol)
     : m_port(port), m_domain(domain), m_type(type), m_protocol(protocol)
 {
-    LogSystem::instance()->Log_init("Log_Rtouch");
+    LogSystem::instance()->Log_init("Log_server");
 
-    socket_Init();
+    if (socket_Init() != 1)
+    {
+        Log_error("Socket Init is fail");
+        return;
+    }
 }
 
 Socket::~Socket()
@@ -34,10 +41,10 @@ void Socket::socket_accept()
 {
     // start accept new client
     this->m_accept = new Socket_accept;
-    this->m_accept->socket_accept(m_socket_listen);
+    this->m_accept->SocketAccept_socket_accept(m_socket_listen);
 }
 
-void Socket::socket_Init()
+int Socket::socket_Init()
 {
     int ret = 0;
 
@@ -47,7 +54,7 @@ void Socket::socket_Init()
     if (SOCKET_ERROR == ret)
     {
         Log_error("ERROR: init");
-        return;
+        return ret;
     }
     m_socket_listen = ret;
 
@@ -65,7 +72,7 @@ void Socket::socket_Init()
     if (SOCKET_ERROR == ret)
     {
         Log_error("ERROR: bind");
-        return;
+        return ret;
     }
 
     // listen
@@ -74,8 +81,10 @@ void Socket::socket_Init()
     if (SOCKET_ERROR == ret)
     {
         Log_error("ERROR: listen");
-        return;
+        return ret;
     }
 
     Log_info("DONE: socket init 127.0.0.1:%d", m_port);
+
+    return 1;
 }

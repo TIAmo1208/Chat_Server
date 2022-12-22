@@ -13,10 +13,13 @@
 #define __SOCKET_ACCPET_H__
 
 #include <vector>
+#include <map>
 #include <stdio.h>
 #include <thread>
 #include <condition_variable>
 #include <mutex>
+#include <math.h>
+#include <sstream>
 
 // socket
 #include <arpa/inet.h>
@@ -27,7 +30,7 @@
 #include "socket_config.h"
 
 // thread pool
-#include "threadPool.hpp"
+#include "threadPool.h"
 
 // log
 #include "Log.h"
@@ -48,7 +51,7 @@ public:
      *
      * @param listen server socket
      */
-    void socket_accept(int listen);
+    void SocketAccept_socket_accept(int listen);
 
 private:
     /**
@@ -56,7 +59,7 @@ private:
      *
      * @param listen server socket
      */
-    void accept_client(int listen);
+    void SocketAccept_accept_client(int listen);
 
     /**
      * @brief receive client`s message
@@ -67,17 +70,18 @@ private:
      * @return true
      * @return false
      */
-    bool recvMessage(int clientSocket, char *clientIP, int port);
+    bool SocketAccept_recvMessage(int clientSocket, char *clientIP, int clientPort);
 
 private:
     sockaddr_in m_clientAddr;                         // client addr
     socklen_t m_clientAddrLen = sizeof(m_clientAddr); // client addr`s len
+    int m_socket_server;                              // server socket
 
     ThreadPool *m_threadPool; // accept and recvMessage thread pool
 
     bool m_TerminateFlag = false; // stop flag (true - stop)
 
-public:
+    // client list
     struct s_socket_client
     {
         int socket;              // client`s socket
@@ -86,7 +90,19 @@ public:
         char ip[INET_ADDRSTRLEN];
         int port;
     };
-    std::vector<struct s_socket_client> m_client_list; // client`s list
+    std::map<int, struct s_socket_client> m_client_list;
+
+    // users
+    struct s_user_Information
+    {
+        std::string UserID = "";
+        int socket = -1;
+        std::string IP = "";
+        int port = -1;
+        std::string Connect_UserID = "";
+    };
+    // <userID, information>
+    std::map<std::string, struct s_user_Information> users;
 };
 
 #endif // __SOCKET_ACCPET_H__

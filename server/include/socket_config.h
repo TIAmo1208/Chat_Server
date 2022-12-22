@@ -25,6 +25,6 @@
 #define SOCKET_SUCCESS 0
 
 // get or set Buffer size
-#define BUFF_MAX_SIZE 4096
+#define BUFF_MAX_SIZE 1024
 
 #endif // __SOCKET_I_H__

@@ -1,12 +1,12 @@
 /**
  * @file Log.cpp
  * @author Sun Qiuming (qiuming.sun@external.marelli.com)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2022-10-28
- * 
+ *
  * @copyright Copyright (c) 2022
- * 
+ *
  */
 #include "Log.h"
 
@@ -64,7 +64,10 @@ LogSystem *LogSystem::instance()
 void LogSystem::Log_init(std::string filePath)
 {
     if (m_initState)
+    {
+        log_error("The Log Log has completed initialization, the log path:%s", m_filePath);
         return;
+    }
 
     std::string tmpName(getLogFileName(m_filePath = filePath));
 
@@ -132,7 +135,7 @@ void LogSystem::Log_print_logfile()
 }
 
 // print debug into the screan
-bool LogSystem::log_debug(const char *pLogFormat, ...)
+bool LogSystem::log_debug(const char *file, const int line, const char *pLogFormat, ...)
 {
     // dereference
     va_list paramList, parm_copy;
@@ -147,11 +150,12 @@ bool LogSystem::log_debug(const char *pLogFormat, ...)
 
     //
     char *logTxt = setLogTxt(TYPE_LOG_DEBUG, temp);
-    printf("%s\n", logTxt);
+    printf("%s\n %s:%d\n", logTxt, file, line);
 
     if (m_outputFile)
         Log_write(logTxt);
 
+    free(temp);
     free(logTxt);
     return true;
 }
@@ -203,6 +207,7 @@ bool LogSystem::log_error(const char *pLogFormat, ...)
     if (m_outputFile)
         Log_write(logTxt);
 
+    free(temp);
     free(logTxt);
     return true;
 }
@@ -228,6 +233,7 @@ bool LogSystem::log_warn(const char *pLogFormat, ...)
     if (m_outputFile)
         Log_write(logTxt);
 
+    free(temp);
     free(logTxt);
     return true;
 }
@@ -253,6 +259,7 @@ bool LogSystem::log_fatal(const char *pLogFormat, ...)
     if (m_outputFile)
         Log_write(logTxt);
 
+    free(temp);
     free(logTxt);
     return true;
 }

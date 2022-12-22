@@ -1,12 +1,12 @@
 /**
  * @file Log.h
  * @author Sun Qiuming (qiuming.sun@external.marelli.com)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2022-10-28
- * 
+ *
  * @copyright Copyright (c) 2022
- * 
+ *
  */
 #ifndef __LOG_H__
 #define __LOG_H__
@@ -20,18 +20,18 @@
 
 namespace Log
 {
-#define LOG_FILE_PATH "Log_Project_Log"
+#define LOG_FILE_PATH "Log"
 #define TYPE_LOG_DEBUG "LOG_DEBUG"
 #define TYPE_LOG_INFO "LOG_INFO"
 #define TYPE_LOG_ERROR "LOG_ERROR"
 #define TYPE_LOG_WARN "LOG_WARN"
 #define TYPE_LOG_FATAL "LOG_FATAL"
 
-#define Log_debug(format, ...) (*LogSystem::instance())(__FILE__, __LINE__, TYPE_LOG_DEBUG, format, ##__VA_ARGS__)
-#define Log_info(format, ...) LogSystem::instance()->log_info(format, ##__VA_ARGS__)
-#define Log_error(format, ...) (*LogSystem::instance())(__FILE__, __LINE__, TYPE_LOG_ERROR, format, ##__VA_ARGS__)
-#define Log_warn(format, ...) (*LogSystem::instance())(__FILE__, __LINE__, TYPE_LOG_WARN, format, ##__VA_ARGS__)
-#define Log_fatal(format, ...) (*LogSystem::instance())(__FILE__, __LINE__, TYPE_LOG_FATAL, format, ##__VA_ARGS__)
+#define Log_debug(format, ...)  LogSystem::instance()->log_debug(__FILE__, __LINE__, format, ##__VA_ARGS__)
+#define Log_info(format, ...)   LogSystem::instance()->log_info(format, ##__VA_ARGS__)
+#define Log_error(format, ...)  LogSystem::instance()->log_error(format, ##__VA_ARGS__)
+#define Log_warn(format, ...)   LogSystem::instance()->log_warn(format, ##__VA_ARGS__)
+#define Log_fatal(format, ...)  LogSystem::instance()->log_fatal(format, ##__VA_ARGS__)
 
     class LogSystem
     {
@@ -45,7 +45,7 @@ namespace Log
 
     public:
         // print debug into the screan
-        bool log_debug(const char *pLogFormat, ...);
+        bool log_debug(const char *file, const int line, const char *pLogFormat, ...);
         // print info into the screan
         bool log_info(const char *pLogFormat, ...);
         // print error into the screan
@@ -85,7 +85,6 @@ namespace Log
         }
 
     private:
-        /* data */
         static LogSystem *m_logSystem; // log system ptr
         bool m_outputFile;             // write into file
         std::string m_filePath = LOG_FILE_PATH;

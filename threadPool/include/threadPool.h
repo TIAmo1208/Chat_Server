@@ -44,7 +44,38 @@ public:
      * @return use future save the function's return valuer, get the value when you need
      */
     template <typename F, typename... Args>
-    std::future<typename std::result_of<F(Args...)>::type> add_Task(F &&f, Args &&...args);
+    std::future<typename std::result_of<F(Args...)>::type> add_Task(F &&f, Args &&...args)
+    {
+        using return_type = typename std::result_of<F(Args...)>::type;
+
+        // bind the task function into a shared_ptr
+        auto task = std::make_shared<std::packaged_task<return_type()>>(
+            std::bind(std::forward<F>(f), std::forward<Args>(args)...));
+
+        // get the return value of the task function
+        std::future<return_type> res = task->get_future();
+        {
+            std::unique_lock<std::mutex> lock(m_queue_mutex);
+
+            // don't allow enqueueing after stopping the pool
+            if (m_stop)
+            {
+                throw std::runtime_error("enqueue on stopped ThreadPool");
+            }
+
+            // add the task
+            m_tasks.emplace([task]()
+                            { (*task)(); });
+
+            lock.unlock();
+        }
+
+        // Notice one thread of thread pool
+        m_condition.notify_one();
+
+        // return the future, get the value when you need
+        return res;
+    }
 
     /**
      * @brief Destroy the Thread Pool object

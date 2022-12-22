@@ -34,7 +34,12 @@ using namespace Log;
 class Socket
 {
 private:
-    void socket_Init();
+    /**
+     * @brief Init
+     *
+     * @return int return the init result
+     */
+    int socket_Init();
 
 public:
     Socket();
@@ -42,7 +47,7 @@ public:
     ~Socket();
 
     /**
-     * @brief start new client accept
+     * @brief start accept new client
      *
      * @param accept the accept class
      */
