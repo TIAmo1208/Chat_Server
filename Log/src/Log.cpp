@@ -11,7 +11,7 @@
 
 /*______ I N C L U D E - F I L E S ___________________________________________*/
 
-#include "Log.h"
+#include "../include/Log.h"
 
 using namespace Log;
 
@@ -97,6 +97,19 @@ void LogSystem::Log_init(std::string filePath)
 
 // default constructor
 LogSystem::LogSystem(bool outputFile) : m_outputFile(outputFile) {}
+
+// destructor
+LogSystem::~LogSystem()
+{
+    char path[255];
+    if (NULL != getcwd(path, 255))
+        printf("\nyou can see the Log file in the %s/%s\n", path, m_logFileName.c_str());
+
+    if (m_WriteStream.is_open())
+    {
+        m_WriteStream.close();
+    }
+}
 
 // write the log into the file without time and log type
 void LogSystem::Log_write(const char *pLogFormat)

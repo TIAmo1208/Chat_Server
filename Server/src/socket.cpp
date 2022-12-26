@@ -19,7 +19,7 @@
 
 Socket::Socket()
 {
-    LogSystem::instance()->Log_init("Log_Rtouch");
+    LogSystem::instance()->Log_init("Log_Chat_Server");
 
     if (socket_Init() != 1)
     {

@@ -100,17 +100,7 @@ private:
     LogSystem(bool outputFile = true);
 
 public:
-    ~LogSystem()
-    {
-        char path[255];
-        if (NULL != getcwd(path, 255))
-            printf("\nyou can see the Log file in the %s/%s\n", path, m_logFileName.c_str());
-
-        if (m_WriteStream.is_open())
-        {
-            m_WriteStream.close();
-        }
-    }
+    ~LogSystem();
 
 private:
     static LogSystem *m_logSystem; // log system ptr

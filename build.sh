@@ -23,9 +23,9 @@ Log_Path="$Home_Path/Log"
 paths+=($Log_Path)
 names+=('Log')
 
-threadPool_Path="$Home_Path/threadPool"
-paths+=($threadPool_Path)
-names+=('threadPool')
+ThreadPool_Path="$Home_Path/ThreadPool"
+paths+=($ThreadPool_Path)
+names+=('ThreadPool')
 
 server_Path="$Home_Path/server"
 paths+=($server_Path)
@@ -47,9 +47,11 @@ for i in ${!paths[@]}; do
 
     cd ..
     echo -e "\033[0;92m${names[$i]} built.\033[0m"
-    rm -rf build
+    # rm -rf build
     cd $FRAMEWORK_PATH/
 done
+
+cp ./config.cfg ./out/bin/
 
 trap : 0
 
