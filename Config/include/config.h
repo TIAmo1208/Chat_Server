@@ -1,12 +1,12 @@
 /**
- * @file config.hpp
- * @author
- * @brief
+ * @file config.h
+ * @author TIAmo (s13144281208@outlook.com)
+ * @brief 
  * @version 0.1
- * @date 2023-02-09
- *
+ * @date 2023-02-11
+ * 
  * @copyright Copyright (c) 2023
- *
+ * 
  */
 #ifndef __CONFIG_H__
 #define __CONFIG_H__

@@ -11,14 +11,32 @@ abort()
     exit 1
 }
 
-trap 'abort' 1
+trap 'abort' ERR
 
 Home_Path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+CLEAN="false"
+
+while [[ $# -gt 0 ]]
+do
+    key="$1"
+
+    case $key in
+        -c|--clean)
+        CLEAN="true"
+        shift # past argument
+        ;;
+    esac
+done
 
 paths=()
 names=()
 
 ##------------
+Config_Path="$Home_Path/Config"
+paths+=($Config_Path)
+names+=('Config')
+
 Log_Path="$Home_Path/Log"
 paths+=($Log_Path)
 names+=('Log')
@@ -27,17 +45,28 @@ ThreadPool_Path="$Home_Path/ThreadPool"
 paths+=($ThreadPool_Path)
 names+=('ThreadPool')
 
-server_Path="$Home_Path/server"
+server_Path="$Home_Path/Server"
 paths+=($server_Path)
-names+=('server')
+names+=('Server')
+
+if [ $CLEAN == "true" ]; then
+    rm -rf out
+fi
 
 cd $FRAMEWORK_PATH/
 
 for i in ${!paths[@]}; do
     echo -e "\033[0;94mStart building ${names[$i]}...\033[0m"
     cd ${paths[$i]}
-    rm -rf build
-    mkdir build
+
+    if [ $CLEAN == "true" ]; then
+        rm -rf build
+    fi
+
+    if [ ! -d "build" ]; then
+        mkdir "build"
+    fi
+
     cd build/
     echo -e "\033[0;94mBuilding and installing ${names[$i]}...\033[0m"
 
@@ -51,7 +80,7 @@ for i in ${!paths[@]}; do
     cd $FRAMEWORK_PATH/
 done
 
-cp ./config.cfg ./out/bin/
+cp $Home_Path/config.cfg $Home_Path/out/bin/
 
 trap : 0
 

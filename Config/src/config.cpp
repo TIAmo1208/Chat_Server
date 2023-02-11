@@ -11,7 +11,7 @@
 
 /*______ I N C L U D E - F I L E S ___________________________________________*/
 
-#include "../include/config.hpp"
+#include "../include/config.h"
 
 using namespace CONFIG;
 
