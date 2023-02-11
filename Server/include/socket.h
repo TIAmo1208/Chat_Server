@@ -1,11 +1,11 @@
 /**
  * @file socket.h
- * @author Sun Qiuming (qiuming.sun@external.marelli.com)
+ * @author TIAmo (s13144281208@outlook.com)
  * @brief
  * @version 0.1
- * @date 2022-10-28
+ * @date 2023-02-11
  *
- * @copyright Copyright (c) 2022
+ * @copyright Copyright (c) 2023
  *
  */
 #ifndef __SOCKET_H__
@@ -24,7 +24,7 @@
 #endif
 
 // log
-#include "Log.h"
+#include "../../out/include/Log.h"
 using namespace Log;
 
 /**
@@ -42,8 +42,7 @@ private:
     int socket_Init();
 
 public:
-    Socket();
-    Socket(int port, int domain = AF_INET, int type = SOCK_STREAM, int protocol = IPPROTO_TCP);
+    Socket(int port = 8000, int domain = AF_INET, int type = SOCK_STREAM, int protocol = IPPROTO_TCP);
     ~Socket();
 
     /**
@@ -51,16 +50,7 @@ public:
      *
      * @param accept the accept class
      */
-    void socket_accept();
-
-private:
-    int m_domain = SOCKET_CONFIG_DOMAIN;      // IPv4
-    int m_type = SOCKET_CONFIG_TYPE;          // Types of sockets
-    int m_protocol = SOCKET_CONFIG__PROTOCOL; // protocols
-    int m_port = SOCKET_CONFIG__PORT;         // port
-    int m_socket_listen;                      // server socket
-
-    Socket_accept *m_accept; // accept client connect
+    void socket_accept(ThreadPool *threadpool);
 };
 
 #endif // __SOCKET_H__

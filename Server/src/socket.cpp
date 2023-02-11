@@ -1,36 +1,37 @@
 /**
  * @file socket.cpp
- * @author Sun Qiuming (qiuming.sun@external.marelli.com)
+ * @author TIAmo (s13144281208@outlook.com)
  * @brief
  * @version 0.1
- * @date 2022-10-28
+ * @date 2023-02-11
  *
- * @copyright Copyright (c) 2022
+ * @copyright Copyright (c) 2023
  *
  */
-
 /*______ I N C L U D E - F I L E S ___________________________________________*/
 
-#include "socket.h"
+#include "../include/socket.h"
 
 #define VERSION (0.2)
 
+/*______ V A R I A B L E _____________________________________________________*/
+
+int m_domain = SOCKET_CONFIG_DOMAIN;     // IPv4
+int m_type = SOCKET_CONFIG_TYPE;         // Types of sockets
+int m_protocol = SOCKET_CONFIG_PROTOCOL; // protocols
+int m_port = SOCKET_CONFIG_PORT;         // port
+int m_socket_listen;                     // server socket
+
+Socket_accept *m_accept; // accept client connect
+
 /*______ F U N C T I O N _____________________________________________________*/
 
-Socket::Socket()
-{
-    LogSystem::instance()->Log_init("Log_Chat_Server");
-
-    if (socket_Init() != 1)
-    {
-        return;
-    }
-}
-
 Socket::Socket(int port, int domain, int type, int protocol)
-    : m_port(port), m_domain(domain), m_type(type), m_protocol(protocol)
 {
-    LogSystem::instance()->Log_init("Log_server");
+    m_port = port;
+    m_domain = domain;
+    m_type = type;
+    m_protocol = protocol;
 
     if (socket_Init() != 1)
     {
@@ -41,14 +42,6 @@ Socket::Socket(int port, int domain, int type, int protocol)
 
 Socket::~Socket()
 {
-    delete LogSystem::instance();
-}
-
-void Socket::socket_accept()
-{
-    // start accept new client
-    this->m_accept = new Socket_accept;
-    this->m_accept->SocketAccept_socket_accept(m_socket_listen);
 }
 
 int Socket::socket_Init()
@@ -66,9 +59,13 @@ int Socket::socket_Init()
     }
     m_socket_listen = ret;
 
+    //
+    // int opt = 1;
+    // setsockopt(m_socket_listen, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
     // Set non-blocking
-    // int flags = fcntl(m_socket_listen, F_GETFL, 0);
-    // fcntl(m_socket_listen, F_SETFL, flags | O_NONBLOCK);
+    int flags = fcntl(m_socket_listen, F_GETFL, 0);
+    fcntl(m_socket_listen, F_SETFL, flags | O_NONBLOCK);
 
     // bind
     Log_debug("Server: bind");
@@ -95,4 +92,11 @@ int Socket::socket_Init()
     Log_debug("DONE: socket init 127.0.0.1:%d", m_port);
 
     return 1;
+}
+
+void Socket::socket_accept(ThreadPool *threadpool)
+{
+    // start accept new client
+    m_accept = new Socket_accept(threadpool);
+    m_accept->SocketAccept_socket_accept(m_socket_listen);
 }

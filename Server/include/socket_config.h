@@ -1,14 +1,13 @@
 /**
- * @file socket_i.h
- * @author  
+ * @file socket_config.h
+ * @author TIAmo (s13144281208@outlook.com)
  * @brief
  * @version 0.1
- * @date 2022-10-28
+ * @date 2023-02-11
  *
- * @copyright Copyright (c) 2022
+ * @copyright Copyright (c) 2023
  *
  */
-
 #ifndef __SOCKET_I_H__
 #define __SOCKET_I_H__
 
@@ -17,8 +16,8 @@
 #define LINUX
 
 // socket config
-#define SOCKET_CONFIG_DOMAIN AF_INET;        // IPv4
-#define SOCKET_CONFIG_TYPE SOCK_STREAM;      // Types of sockets
+#define SOCKET_CONFIG_DOMAIN AF_INET;       // IPv4
+#define SOCKET_CONFIG_TYPE SOCK_STREAM;     // Types of sockets
 #define SOCKET_CONFIG_PROTOCOL IPPROTO_TCP; // protocols
 #define SOCKET_CONFIG_PORT 8000;            // port
 
