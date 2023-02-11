@@ -1,12 +1,12 @@
 /**
  * @file socket_accept.cpp
  * @author TIAmo (s13144281208@outlook.com)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2023-02-11
- * 
+ *
  * @copyright Copyright (c) 2023
- * 
+ *
  */
 /*______ I N C L U D E - F I L E S ___________________________________________*/
 
@@ -201,7 +201,7 @@ void selector()
         int max_fd = m_fd_array[0];
 
         // fill fd_set
-        for (int i = 0; i < m_fd_array_length + 1; ++i)
+        for (int i = 0; i < m_fd_array_MaxSize; ++i)
         {
             if (m_fd_array[i] == -1)
             {
@@ -240,7 +240,7 @@ void selector()
 
 void event_processing(fd_set &_readfds)
 {
-    for (int i = 0; i < m_fd_array_MaxSize + 1; ++i)
+    for (int i = 0; i < m_fd_array_MaxSize; ++i)
     {
         // check socket read state
         if (m_fd_array[i] == -1 || !FD_ISSET(m_fd_array[i], &_readfds))
