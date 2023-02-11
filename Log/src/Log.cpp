@@ -1,6 +1,6 @@
 /**
  * @file Log.cpp
- * @author Sun Qiuming (qiuming.sun@external.marelli.com)
+ * @author
  * @brief
  * @version 0.1
  * @date 2022-10-28
@@ -15,7 +15,32 @@
 
 using namespace Log;
 
-LogSystem *LogSystem::m_logSystem = nullptr;
+/*______ D E F I N E _________________________________________________________*/
+
+#define LOG_LEVEL_NONE (0)
+#define LOG_LEVEL_ERROR (1)
+#define LOG_LEVEL_WARN (2)
+#define LOG_LEVEL_INFO (3)
+#define LOG_LEVEL_DEBUG (4)
+
+#define TYPE_LOG_DEBUG "LOG_DEBUG"
+#define TYPE_LOG_INFO "LOG_INFO"
+#define TYPE_LOG_ERROR "LOG_ERROR"
+#define TYPE_LOG_WARN "LOG_WARN"
+#define TYPE_LOG_FATAL "LOG_FATAL"
+
+/*______ V A R I A B L E _____________________________________________________*/
+
+static LogSystem *m_logSystem = nullptr; // log system ptr
+
+bool m_outputFile = true; // write into file
+std::string m_filePath = "Log";
+
+int m_log_level = LOG_LEVEL_INFO;
+
+std::string m_logFileName = "";
+std::ofstream m_WriteStream;
+bool m_initState = false; // true when init is done
 
 /*______ F U N C T I O N _____________________________________________________*/
 
@@ -61,34 +86,41 @@ LogSystem *LogSystem::instance()
 {
     if (m_logSystem == nullptr)
     {
-        m_logSystem = new LogSystem(true);
+        m_logSystem = new LogSystem();
     }
     return m_logSystem;
 }
 
-void LogSystem::Log_init(std::string filePath)
+void LogSystem::Log_init(int _log_level, bool _log_file_enable, std::string _filePath)
 {
     if (m_initState)
     {
-        log_error("The Log Log has completed initialization, the log path:%s", m_filePath);
+        Log_debug("The Log Log has completed initialization, the log path:%s", m_filePath);
         return;
     }
 
-    std::string tmpName(getLogFileName(m_filePath = filePath));
+    m_log_level = _log_level;
+    m_outputFile = _log_file_enable;
+    m_filePath = _filePath;
 
-    // if not exist the log file,create and write new log
-    if (0 != access(tmpName.c_str(), 0))
+    if (m_outputFile)
     {
-        log_info("start create new log file");
-    }
-    else
-    {
-        m_WriteStream = std::ofstream(m_logFileName = tmpName, std::ios::app);
-        if (!m_WriteStream.is_open())
+        std::string tmpName(getLogFileName(m_filePath));
+
+        // if not exist the log file,create and write new log
+        if (0 != access(tmpName.c_str(), 0))
         {
-            m_outputFile = false;
-            log_fatal("the ofstream open fail %s:%d", __FILE__, __LINE__);
-            return;
+            log_info("start create new log file");
+        }
+        else
+        {
+            m_WriteStream = std::ofstream(m_logFileName = tmpName, std::ios::app);
+            if (!m_WriteStream.is_open())
+            {
+                m_outputFile = false;
+                log_fatal("the ofstream open fail, please check the file path");
+                return;
+            }
         }
     }
 
@@ -96,7 +128,7 @@ void LogSystem::Log_init(std::string filePath)
 }
 
 // default constructor
-LogSystem::LogSystem(bool outputFile) : m_outputFile(outputFile) {}
+LogSystem::LogSystem() {}
 
 // destructor
 LogSystem::~LogSystem()
@@ -105,6 +137,11 @@ LogSystem::~LogSystem()
     if (NULL != getcwd(path, 255))
         printf("\nyou can see the Log file in the %s/%s\n", path, m_logFileName.c_str());
 
+    if (m_logSystem != nullptr)
+    {
+        delete m_logSystem;
+        m_logSystem = nullptr;
+    }
     if (m_WriteStream.is_open())
     {
         m_WriteStream.close();
@@ -112,7 +149,7 @@ LogSystem::~LogSystem()
 }
 
 // write the log into the file without time and log type
-void LogSystem::Log_write(const char *pLogFormat)
+void Log_write(const char *pLogFormat)
 {
     // write into file
     std::string tmpName(getLogFileName(m_filePath));
@@ -126,7 +163,7 @@ void LogSystem::Log_write(const char *pLogFormat)
         if (!m_WriteStream.is_open())
         {
             m_outputFile = false;
-            log_fatal("the ofstream open fail %s:%d", __FILE__, __LINE__);
+            Log_error("the ofstream open fail, please check the file path");
             return;
         }
     }
@@ -136,25 +173,28 @@ void LogSystem::Log_write(const char *pLogFormat)
 }
 
 // read and print the log file
-void LogSystem::Log_print_logfile()
+void Log_print_logfile()
 {
     std::ifstream readStream(m_logFileName, std::ios::in);
     if (!readStream.is_open())
     {
-        log_error("the ifstream open fail %s:%d", __FILE__, __LINE__);
+        Log_error("the ifstream open fail, please check the file path");
         return;
     }
 
     char buf[1024] = {0};
     while (readStream.getline(buf, sizeof(buf)))
     {
-        printf("%s\n", buf);
+        Log_error("%s", buf);
     }
 }
 
 // print debug into the screan
 bool LogSystem::log_debug(const char *file, const int line, const char *pLogFormat, ...)
 {
+    if (m_log_level < LOG_LEVEL_DEBUG)
+        return false;
+
     // dereference
     va_list paramList, parm_copy;
     va_start(paramList, pLogFormat);
@@ -181,6 +221,9 @@ bool LogSystem::log_debug(const char *file, const int line, const char *pLogForm
 // print info into the screan
 bool LogSystem::log_info(const char *pLogFormat, ...)
 {
+    if (m_log_level < LOG_LEVEL_INFO)
+        return false;
+
     // dereference
     va_list paramList, parm_copy;
     va_start(paramList, pLogFormat);
@@ -207,6 +250,9 @@ bool LogSystem::log_info(const char *pLogFormat, ...)
 // print error into the screan
 bool LogSystem::log_error(const char *pLogFormat, ...)
 {
+    if (m_log_level < LOG_LEVEL_ERROR)
+        return false;
+
     // dereference
     va_list paramList, parm_copy;
     va_start(paramList, pLogFormat);
@@ -233,6 +279,9 @@ bool LogSystem::log_error(const char *pLogFormat, ...)
 // print warn into the screan
 bool LogSystem::log_warn(const char *pLogFormat, ...)
 {
+    if (m_log_level < LOG_LEVEL_WARN)
+        return false;
+
     // dereference
     va_list paramList, parm_copy;
     va_start(paramList, pLogFormat);
@@ -259,6 +308,9 @@ bool LogSystem::log_warn(const char *pLogFormat, ...)
 // print fatal into the screan
 bool LogSystem::log_fatal(const char *pLogFormat, ...)
 {
+    if (m_log_level == LOG_LEVEL_NONE)
+        return false;
+
     // dereference
     va_list paramList, parm_copy;
     va_start(paramList, pLogFormat);
@@ -307,3 +359,12 @@ void LogSystem::operator()(const char *file, const int line, const char *logType
     free(temp);
     free(logTxt);
 }
+
+//
+void LogSystem::Log_set_OutputFile(bool state) { m_outputFile = state; }
+
+//
+void LogSystem::Log_set_FilePath(std::string filePath) { m_filePath = filePath; }
+
+//
+void LogSystem::Log_set_LogLevel(int _level) { m_log_level = _level; }
