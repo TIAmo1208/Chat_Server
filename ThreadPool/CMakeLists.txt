@@ -10,13 +10,10 @@ endif()
 file(GLOB SOURCES "./src/*.cpp")
 file(GLOB HEADERS "./include/*.hpp" "./include/*.h")
 
-# file(GLOB SOURCES "./src/*.cpp" "Test.cpp" "../Log/src/Log.cpp")
-# file(GLOB HEADERS "./include/*.hpp" "./include/*.h" "../Log/include/Log.h")
-
 # 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-# add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
+#
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
 
 # Copy header files to INSTALL path

@@ -11,7 +11,7 @@
 
 /*______ I N C L U D E - F I L E S ___________________________________________*/
 
-#include "../include/threadPool.h"
+#include "../include/threadPool_impl.h"
 
 /*______ V A R I A B L E _____________________________________________________*/
 
@@ -88,7 +88,7 @@ void workthread()
 	}
 }
 
-ThreadPool::ThreadPool(int threads)
+ThreadPool_impl::ThreadPool_impl(int threads)
 {
 	m_stop = false;
 	m_num_thread = threads;
@@ -100,7 +100,7 @@ ThreadPool::ThreadPool(int threads)
 	}
 }
 
-ThreadPool::~ThreadPool()
+ThreadPool_impl::~ThreadPool_impl()
 {
 	this->join();
 
@@ -110,7 +110,7 @@ ThreadPool::~ThreadPool()
 	}
 }
 
-void ThreadPool::add_Task(std::function<void()> &_task)
+void ThreadPool_impl::add_Task(std::function<void()> &_task)
 {
 	// save task function ptr
 	std::shared_ptr<std::packaged_task<void()>> task = std::make_shared<std::packaged_task<void()>>(_task);
@@ -122,13 +122,13 @@ void ThreadPool::add_Task(std::function<void()> &_task)
 
 	// add task to task list
 	m_mutex_queue.Mutex_Queue_emplace([task]()
-								{ (*task)(); });
+									  { (*task)(); });
 
 	// Notice one thread of thread pool
 	m_condition.notify_one();
 }
 
-void ThreadPool::join()
+void ThreadPool_impl::join()
 {
 	if (m_list_threads.empty())
 		return;
@@ -136,14 +136,14 @@ void ThreadPool::join()
 	// wait for all the task done
 	while (!m_stop)
 	{
-		if (!m_mutex_queue.Mutex_Queue_empty())
 		{
-			std::this_thread::sleep_for(std::chrono::microseconds(3));
+			if (m_mutex_queue.Mutex_Queue_empty())
+			{
+				break;
+			}
 		}
-		else
-		{
-			break;
-		}
+
+		std::this_thread::sleep_for(std::chrono::microseconds(3));
 	}
 
 	m_stop = true;
