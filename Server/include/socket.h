@@ -24,7 +24,7 @@
 #endif
 
 // log
-#include "../../out/include/Log.h"
+#include "Log.h"
 using namespace Log;
 
 /**

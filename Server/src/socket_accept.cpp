@@ -150,7 +150,6 @@ void Socket_accept::SocketAccept_socket_accept(int listen)
 {
     m_socket_server = listen;
 
-    // m_threadPool->add_Task(&Socket_accept::SokcetAccept_selector, this);
     Log_info("Server: start accept client");
     selector();
 
@@ -356,7 +355,7 @@ int recvMessage(int _clientSocket)
     if (!m_queue_recvFile.empty() && m_queue_recvFile.front().socket == _clientSocket)
     {
         //// TODO : 接收文件，另起线程
-        m_threadPool->add_Task(sendFile, user);
+        m_threadPool->ThreadPool_add_Task(sendFile, user);
         // sleep for add task
         std::this_thread::sleep_for(std::chrono::microseconds(3));
         return ret = 0;

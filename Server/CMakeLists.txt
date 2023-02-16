@@ -11,7 +11,7 @@ include_directories(include ../out/include)
 include_directories(include ./include)
 
 file(GLOB SOURCES "./src/*.cpp")
-file(GLOB HEADERS "./include/*.h" "Log.h" "threadPool.h")
+file(GLOB HEADERS "./include/*.h")
 
 link_directories(../out/lib/)
 

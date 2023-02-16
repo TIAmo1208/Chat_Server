@@ -1,12 +1,12 @@
 /**
  * @file socket_accept.h
  * @author TIAmo (s13144281208@outlook.com)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2023-02-11
- * 
+ *
  * @copyright Copyright (c) 2023
- * 
+ *
  */
 #ifndef __SOCKET_ACCPET_H__
 #define __SOCKET_ACCPET_H__
@@ -15,6 +15,7 @@
 
 #include <vector>
 #include <map>
+#include <queue>
 
 #include <stdio.h>
 
@@ -35,10 +36,10 @@
 #include "socket_config.h"
 
 // thread pool
-#include "../../out/include/threadPool.hpp"
+#include "threadPool.hpp"
 
 // log
-#include "../../out/include/Log.h"
+#include "Log.h"
 using namespace Log;
 
 /*______ F U N C T I O N _____________________________________________________*/
