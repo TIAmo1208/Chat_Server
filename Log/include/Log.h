@@ -1,6 +1,6 @@
 /**
  * @file Log.h
- * @author  
+ * @author
  * @brief
  * @version 0.1
  * @date 2022-10-28
@@ -66,6 +66,7 @@ namespace Log
         LogSystem();
 
     public:
+        void del_object();
         ~LogSystem();
     };
 }

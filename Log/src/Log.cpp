@@ -137,14 +137,18 @@ LogSystem::~LogSystem()
     if (NULL != getcwd(path, 255))
         printf("\nyou can see the Log file in the %s/%s\n", path, m_logFileName.c_str());
 
+    if (m_WriteStream.is_open())
+    {
+        m_WriteStream.close();
+    }
+}
+
+void LogSystem::del_object()
+{
     if (m_logSystem != nullptr)
     {
         delete m_logSystem;
         m_logSystem = nullptr;
-    }
-    if (m_WriteStream.is_open())
-    {
-        m_WriteStream.close();
     }
 }
 
