@@ -20,6 +20,7 @@ add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 # Copy file to INSTALL path
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
 
-target_link_libraries(${PROJECT_NAME} Config Log ThreadPool)
+target_link_libraries(${PROJECT_NAME} Config Log ThreadPool Mysql)
 
+#
 target_link_libraries(${PROJECT_NAME} pthread)

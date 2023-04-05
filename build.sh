@@ -45,6 +45,10 @@ ThreadPool_Path="$Home_Path/ThreadPool"
 paths+=($ThreadPool_Path)
 names+=('ThreadPool')
 
+mysql_Path="$Home_Path/Mysql"
+paths+=($mysql_Path)
+names+=('Mysql')
+
 server_Path="$Home_Path/Server"
 paths+=($server_Path)
 names+=('Server')

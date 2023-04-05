@@ -21,6 +21,3 @@ install(FILES ${HEADERS} DESTINATION include)
 
 # Copy library file to INSTALL path
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
-
-#
-target_link_libraries(${PROJECT_NAME} pthread)

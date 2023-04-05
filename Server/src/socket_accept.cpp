@@ -35,6 +35,9 @@
 #define CODE_SERVER_NoConnect_ERROR "0xe004"
 #define SOCKET_ERROR_NoConnect(target) send(target, CODE_SERVER_NoConnect_ERROR, sizeof(CODE_SERVER_NoConnect_ERROR), 0);
 
+#define CODE_SERVER_VERIFICATION_ERROR "0xe005"
+#define SOCKET_ERROR_VERIFICATION(target) send(target, CODE_SERVER_VERIFICATION_ERROR, sizeof(CODE_SERVER_VERIFICATION_ERROR), 0);
+
 /*______ V A R I A B L E _____________________________________________________*/
 
 sockaddr_in m_clientAddr;                         // client addr
@@ -66,6 +69,7 @@ struct s_user_Information
     int port = -1;
 
     std::string UserID = "";
+    std::string UserName = "";
     std::string Connect_UserID = "";
 };
 // <userID, information>
@@ -142,6 +146,8 @@ Socket_accept::~Socket_accept()
         }
         m_client_list.clear();
     }
+
+    Mysql::instance()->del_object();
 
     m_users.clear();
 }
@@ -224,7 +230,7 @@ void selector()
         {
         case -1:
             Log_error("select error");
-            return;
+            break;
 
         case 0:
             Log_warn("select timeout");
@@ -401,11 +407,41 @@ void message_processing(std::string _message, int _message_type, s_user_Informat
 {
     if (_message_type == CODE_CONNECT_SERVER)
     {
-        //// TODO : 数据处理，检验 userID 是否正确
-        //// TODO : 获取数据库，验证 用户密码 是否正确
+        if (_message[0] == '"')
+        {
+            // 获取账号密码
+            int lastPos = _message.find('"', 1);
+            std::string user = _message.substr(1, lastPos - 1);
+            std::string password = _message.substr(lastPos + 2, _message.length() - lastPos - 3);
+            Log_debug("user:%s, password:%s", user.c_str(), password.c_str());
 
-        _user.UserID = _message;
-        Log_info("code : %s connect server", _user.UserID.c_str());
+            // 验证数据库
+            std::string user_Name;
+            int ret = Mysql::instance()->Mysql_check_user(user, password, user_Name);
+            switch (ret)
+            {
+            case 0:
+                Log_debug("Mysql_check_user success");
+                Log_debug("user_Name : %s", user_Name.c_str());
+                _user.UserID = user;
+                _user.UserName = user_Name;
+                send(_user.socket, _user.UserName.c_str(), _user.UserName.length(), 0);
+                Log_info("code : %s:%s connect server", _user.UserID.c_str(), _user.UserName.c_str());
+                break;
+            case -1:
+                Log_fatal("Mysql_check_user mysql server error");
+                break;
+            case -2:
+                Log_debug("Mysql_check_user fail");
+                SOCKET_ERROR_VERIFICATION(_user.socket);
+                break;
+            }
+        }
+        else
+        {
+            SOCKET_ERROR_RECV(_user.socket);
+            Log_info("Unknow code !!! cod : %d", _message_type);
+        }
     }
     else if (_message_type == CODE_CONNECT_CLIENT)
     {

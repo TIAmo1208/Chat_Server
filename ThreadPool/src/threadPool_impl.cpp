@@ -93,7 +93,7 @@ ThreadPool_impl::ThreadPool_impl(int threads)
 	m_stop = false;
 	m_num_thread = threads;
 
-	for (size_t i = 0; i < threads; ++i)
+	for (size_t i = 0; i < m_num_thread; ++i)
 	{
 		// Instance thread
 		m_list_threads.emplace_back(workthread);

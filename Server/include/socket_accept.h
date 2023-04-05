@@ -42,6 +42,9 @@
 #include "Log.h"
 using namespace Log;
 
+// Mysql
+#include "Mysql.h"
+
 /*______ F U N C T I O N _____________________________________________________*/
 
 /// @brief Socket_accept - be use to accept new client, and Manage the client

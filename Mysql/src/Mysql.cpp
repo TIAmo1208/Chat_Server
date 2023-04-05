@@ -10,6 +10,8 @@
  */
 /*______ I N C L U D E - F I L E S ___________________________________________*/
 
+#include <mysql.h>
+#include <mutex>
 #include "../include/Mysql.h"
 
 /*______ D E F I N E _________________________________________________________*/
@@ -19,9 +21,11 @@
 static Mysql *s_mysqlSystem = nullptr; // mysql system ptr
 bool initState = false;
 
-MYSQL g_mysql;
-MYSQL_RES *g_mysql_res = nullptr;
-std::string g_dataBase;
+MYSQL m_mysql;
+MYSQL_RES *m_mysql_res = nullptr;
+std::string m_dataBase;
+
+std::mutex m_lock;
 
 /*______ F U N C T I O N _____________________________________________________*/
 
@@ -34,28 +38,28 @@ int checkRepeat(std::string commond)
     int ret = -1;
 
     // execute the command
-    if (mysql_real_query(&g_mysql, commond.c_str(), strlen(commond.c_str())))
+    if (mysql_real_query(&m_mysql, commond.c_str(), strlen(commond.c_str())))
     {
-        printf("mysql select fail : %d \n", mysql_errno(&g_mysql));
+        printf("mysql select fail : %d \n", mysql_errno(&m_mysql));
         printf("commond : %s\n", commond.c_str());
         return ret = -1;
     }
 
     // get the result
-    g_mysql_res = mysql_store_result(&g_mysql);
-    if (nullptr == g_mysql_res)
+    m_mysql_res = mysql_store_result(&m_mysql);
+    if (nullptr == m_mysql_res)
     {
-        printf("mysql store result fail : %d \n", mysql_errno(&g_mysql));
+        printf("mysql store result fail : %d \n", mysql_errno(&m_mysql));
         return ret = -1;
     }
 
     //
-    if (nullptr != mysql_fetch_row(g_mysql_res))
+    if (nullptr != mysql_fetch_row(m_mysql_res))
     {
         return ret = 1;
     }
 
-    mysql_free_result(g_mysql_res);
+    mysql_free_result(m_mysql_res);
     return ret = 0;
 }
 
@@ -67,7 +71,7 @@ int checkRepeat_UserID(std::string _userID)
 {
     // assembly command
     std::stringstream strstream;
-    strstream << "SELECT * FROM " << g_dataBase << ".User WHERE user_id = '" << _userID << "';";
+    strstream << "SELECT * FROM " << m_dataBase << ".User WHERE user_id = '" << _userID << "';";
 
     return checkRepeat(strstream.str());
 }
@@ -80,7 +84,7 @@ int checkRepeat_UserName(std::string _userName)
 {
     // assembly command
     std::stringstream strstream;
-    strstream << "SELECT * FROM " << g_dataBase << ".User WHERE user_name = '" << _userName << "';";
+    strstream << "SELECT * FROM " << m_dataBase << ".User WHERE user_name = '" << _userName << "';";
 
     return checkRepeat(strstream.str());
 }
@@ -91,7 +95,11 @@ Mysql *Mysql::instance()
 {
     if (s_mysqlSystem == nullptr)
     {
-        s_mysqlSystem = new Mysql();
+        std::unique_lock<std::mutex> lock(m_lock);
+        if (s_mysqlSystem == nullptr)
+        {
+            s_mysqlSystem = new Mysql();
+        }
     }
     return s_mysqlSystem;
 }
@@ -102,18 +110,17 @@ int Mysql::Mysql_init(std::string _hostname, std::string _username, std::string 
 
     if (initState)
     {
-        printf("mysql is already init");
         return ret = -1;
     }
 
-    g_dataBase = _database;
+    m_dataBase = _database;
 
     // init
-    mysql_init(&g_mysql);
+    mysql_init(&m_mysql);
 
     // connect
-    mysql_real_connect(&g_mysql, _hostname.c_str(), _username.c_str(), _password.c_str(), _database.c_str(), _port, nullptr, CLIENT_FOUND_ROWS);
-    if (nullptr == &g_mysql)
+    mysql_real_connect(&m_mysql, _hostname.c_str(), _username.c_str(), _password.c_str(), _database.c_str(), _port, nullptr, CLIENT_FOUND_ROWS);
+    if (nullptr == &m_mysql)
     {
         printf("mysql connect fail\n");
         return ret = -1;
@@ -143,24 +150,24 @@ int Mysql::Mysql_insert_user(std::string _userID, std::string _password, std::st
     std::stringstream strstream;
 
     // TODO : 密码加盐
-    strstream << "INSERT INTO " << g_dataBase << ".User (user_id, user_password, user_name, salt) VALUES ('" << _userID << "', '" << _password << "', '" << _userName << "', '" << salt << "');";
+    strstream << "INSERT INTO " << m_dataBase << ".User (user_id, user_password, user_name, salt) VALUES ('" << _userID << "', '" << _password << "', '" << _userName << "', '" << salt << "');";
 
     std::string commond = strstream.str();
-    if (mysql_real_query(&g_mysql, commond.c_str(), strlen(commond.c_str())))
+    if (mysql_real_query(&m_mysql, commond.c_str(), strlen(commond.c_str())))
     {
-        printf("mysql execute fail : %d \n", mysql_errno(&g_mysql));
+        printf("mysql execute fail : %d \n", mysql_errno(&m_mysql));
         printf("commond : %s\n", commond.c_str());
         return ret = -1;
     }
 
-    g_mysql_res = mysql_store_result(&g_mysql);
-    if (nullptr == g_mysql_res)
+    m_mysql_res = mysql_store_result(&m_mysql);
+    if (nullptr == m_mysql_res)
     {
-        printf("mysql store result fail : %d \n", mysql_errno(&g_mysql));
+        printf("mysql store result fail : %d \n", mysql_errno(&m_mysql));
         return ret = -1;
     }
 
-    mysql_free_result(g_mysql_res);
+    mysql_free_result(m_mysql_res);
     return ret = 0;
 }
 
@@ -170,28 +177,28 @@ int Mysql::Mysql_check_user(std::string _userID, std::string _password, std::str
 
     // assembly command
     std::stringstream strstream;
-    strstream << "SELECT * FROM " << g_dataBase << ".User WHERE user_id = '" << _userID << "';";
+    strstream << "SELECT * FROM " << m_dataBase << ".User WHERE user_id = '" << _userID << "';";
     std::string commond = strstream.str();
 
     // execute the command
-    if (mysql_real_query(&g_mysql, commond.c_str(), strlen(commond.c_str())))
+    if (mysql_real_query(&m_mysql, commond.c_str(), strlen(commond.c_str())))
     {
-        printf("mysql select fail : %d \n", mysql_errno(&g_mysql));
+        printf("mysql select fail : %d \n", mysql_errno(&m_mysql));
         printf("commond : %s\n", commond.c_str());
         return ret = -1;
     }
 
     // get the result
-    g_mysql_res = mysql_store_result(&g_mysql);
-    if (nullptr == g_mysql_res)
+    m_mysql_res = mysql_store_result(&m_mysql);
+    if (nullptr == m_mysql_res)
     {
-        printf("mysql store result fail : %d \n", mysql_errno(&g_mysql));
+        printf("mysql store result fail : %d \n", mysql_errno(&m_mysql));
         return ret = -1;
     }
 
     // get the result data
     MYSQL_ROW row;
-    if (row = mysql_fetch_row(g_mysql_res))
+    if (row = mysql_fetch_row(m_mysql_res))
     {
         // TODO : 密码加盐计算
         // row[3]
@@ -208,7 +215,7 @@ int Mysql::Mysql_check_user(std::string _userID, std::string _password, std::str
         return ret = -2;
     }
 
-    mysql_free_result(g_mysql_res);
+    mysql_free_result(m_mysql_res);
     return ret = 0;
 }
 
@@ -218,10 +225,10 @@ Mysql::Mysql(/* args */)
 
 Mysql::~Mysql()
 {
-    if (g_mysql_res != nullptr)
-        mysql_free_result(g_mysql_res);
+    if (m_mysql_res != nullptr)
+        mysql_free_result(m_mysql_res);
 
-    mysql_close(&g_mysql);
+    mysql_close(&m_mysql);
 }
 
 void Mysql::del_object()

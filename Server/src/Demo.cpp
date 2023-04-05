@@ -1,12 +1,12 @@
 /**
  * @file Demo.cpp
  * @author TIAmo (s13144281208@outlook.com)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2023-02-11
- * 
+ *
  * @copyright Copyright (c) 2023
- * 
+ *
  */
 #ifndef __DEMO_H__
 #define __DEMO_H__
@@ -14,6 +14,8 @@
 #include "../../out/include/config.h"
 #include "../../out/include/Log.h"
 #include "../../out/include/threadPool.hpp"
+#include "../../out/include/Mysql.h"
+#include <thread>
 
 #include "../include/socket.h"
 #include "../include/socket_config.h"
@@ -41,6 +43,13 @@ int main(const int _argc, char *const _argv[])
     // thread pool
     ThreadPool *threadpool = new ThreadPool(threads);
 
+    // Mysql
+    std::string host = "localhost";
+    std::string name = "TIAmo";
+    std::string password = "sqm19991208";
+    std::string database = "Chat_server";
+    Mysql::instance()->Mysql_init(host, name, password, database, 3306);
+
     // socket
     Socket *socket = new Socket(server_port);
     std::thread thread_socket = std::thread(&Socket::socket_accept, socket, threadpool);
@@ -50,6 +59,8 @@ int main(const int _argc, char *const _argv[])
 
     delete socket;
     delete threadpool;
+    LogSystem::instance()->del_object();
+    Mysql::instance()->del_object();
 
     return 0;
 }
