@@ -11,14 +11,14 @@
 #ifndef __DEMO_H__
 #define __DEMO_H__
 
-#include "../../out/include/config.h"
-#include "../../out/include/Log.h"
-#include "../../out/include/threadPool.hpp"
-#include "../../out/include/Mysql.h"
+#include "config.h"
+#include "Log.h"
+#include "threadPool.hpp"
+#include "Mysql.h"
 #include <thread>
 
-#include "../include/socket.h"
-#include "../include/socket_config.h"
+#include "Server_Interface.hpp"
+#include "Server_impl.hpp"
 
 int main(const int _argc, char *const _argv[])
 {
@@ -41,7 +41,7 @@ int main(const int _argc, char *const _argv[])
     LogSystem::instance()->Log_init(log_level, log_file_enable, log_file_path);
 
     // thread pool
-    ThreadPool *threadpool = new ThreadPool(threads);
+    // ThreadPool *threadpool = new ThreadPool(threads);
 
     // Mysql
     std::string host = "localhost";
@@ -51,14 +51,16 @@ int main(const int _argc, char *const _argv[])
     Mysql::instance()->Mysql_init(host, name, password, database, 3306);
 
     // socket
-    Socket *socket = new Socket(server_port);
-    std::thread thread_socket = std::thread(&Socket::socket_accept, socket, threadpool);
-    Log_info("Thread : socket_accept id : %d", thread_socket.get_id());
+    std::shared_ptr<Server_Interface> server = std::make_shared<Server_impl>();
 
-    thread_socket.join();
+    server->Server_Init(8888);
 
-    delete socket;
-    delete threadpool;
+    while (1)
+    {
+        server->Server_Update();
+    }
+
+    //
     LogSystem::instance()->del_object();
     Mysql::instance()->del_object();
 

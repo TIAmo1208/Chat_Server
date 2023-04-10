@@ -10,7 +10,7 @@ endif()
 include_directories(include ../out/include)
 include_directories(include ./include)
 
-file(GLOB SOURCES "./src/*.cpp")
+file(GLOB SOURCES "./src/*.cpp" "./Demo.cpp")
 file(GLOB HEADERS "./include/*.h")
 
 link_directories(../out/lib/)
