@@ -14,9 +14,17 @@
 /*______ I N C L U D E - F I L E S ___________________________________________*/
 
 #include <map>
+#include <vector>
 #include <stdio.h>
 #include <string.h>
 #include <sstream>
+
+enum UserState
+{
+    UserState_Unknown = 1,
+    UserState_Online = 2,
+    UserState_Offline = 3
+};
 
 class Mysql
 {
@@ -36,7 +44,7 @@ public:
      * @param _port
      * @return int
      */
-    int Mysql_init(std::string _hostname, std::string _username, std::string _password, std::string _database, int _port);
+    int Mysql_init(std::string &_hostname, std::string &_username, std::string &_password, std::string &_database, int _port);
 
     /**
      * @brief insert new user
@@ -44,9 +52,12 @@ public:
      * @param _userID
      * @param _password
      * @param _userName
-     * @return int
+     * @return 0: success;
+     * @return -1: server is error;
+     * @return -2: User information exists;
+     * @return -2: Account information exists;
      */
-    int Mysql_insert_user(std::string _userID, std::string _password, std::string _userName);
+    int Mysql_insert_user(std::string &_userID, std::string &_password, std::string &_userName);
 
     /**
      * @brief check user
@@ -54,11 +65,33 @@ public:
      * @param _userID
      * @param _password
      * @param _user_name
-     * @return int 0: success;
-     *  -1: server is error;
-     *  -2: information error;
+     * @return 0: success;
+     * @return -1: server is error;
+     * @return -2: information error;
      */
-    int Mysql_check_user(std::string _userID, std::string _password, std::string &_user_name);
+    int Mysql_check_user(std::string &_userID, std::string &_password, std::string &_user_name);
+
+    /**
+     * @brief get friend list
+     *
+     * @param _userID
+     * @param _friendList
+     * @return int other: the size of friend list;
+     * @return -1: server is error;
+     * @return -2: information error;
+     */
+    int Mysql_Get_friendList(std::string &_userID, std::vector<std::string> &_friendList);
+
+    /**
+     * @brief set user state
+     *
+     * @param _userID
+     * @param _state
+     * @return 0: success;
+     * @return -1: server is error;
+     * @return -2: information error;
+     */
+    int Mysql_Set_userState(std::string &_userID, UserState _state);
 
 private:
     Mysql(/* args */);

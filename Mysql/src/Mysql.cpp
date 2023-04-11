@@ -33,15 +33,15 @@ std::mutex m_lock;
 //  1: Have a return value
 //  0: No return value
 //  -1: mysql error
-int checkRepeat(std::string commond)
+int checkRepeat(std::string &_commond)
 {
     int ret = -1;
 
     // execute the command
-    if (mysql_real_query(&m_mysql, commond.c_str(), strlen(commond.c_str())))
+    if (mysql_real_query(&m_mysql, _commond.c_str(), strlen(_commond.c_str())))
     {
         printf("mysql select fail : %d \n", mysql_errno(&m_mysql));
-        printf("commond : %s\n", commond.c_str());
+        printf("commond : %s\n", _commond.c_str());
         return ret = -1;
     }
 
@@ -67,26 +67,28 @@ int checkRepeat(std::string commond)
 //  1: the user userID is exists
 //  0: the user userID is no exists
 //  -1: mysql error
-int checkRepeat_UserID(std::string _userID)
+int checkRepeat_UserID(std::string &_userID)
 {
     // assembly command
     std::stringstream strstream;
     strstream << "SELECT * FROM " << m_dataBase << ".User WHERE user_id = '" << _userID << "';";
 
-    return checkRepeat(strstream.str());
+    std::string commond = strstream.str();
+    return checkRepeat(commond);
 }
 
 // Detect if the name is duplicated
 //  1: the user name is exists
 //  0: the user name is no exists
 //  -1: mysql error
-int checkRepeat_UserName(std::string _userName)
+int checkRepeat_UserName(std::string &_userName)
 {
     // assembly command
     std::stringstream strstream;
     strstream << "SELECT * FROM " << m_dataBase << ".User WHERE user_name = '" << _userName << "';";
 
-    return checkRepeat(strstream.str());
+    std::string commond = strstream.str();
+    return checkRepeat(commond);
 }
 
 /*______ F U N C T I O N _____________________________________________________*/
@@ -104,7 +106,7 @@ Mysql *Mysql::instance()
     return s_mysqlSystem;
 }
 
-int Mysql::Mysql_init(std::string _hostname, std::string _username, std::string _password, std::string _database, int _port)
+int Mysql::Mysql_init(std::string &_hostname, std::string &_username, std::string &_password, std::string &_database, int _port)
 {
     int ret = -1;
 
@@ -130,7 +132,7 @@ int Mysql::Mysql_init(std::string _hostname, std::string _username, std::string 
     return ret = 0;
 }
 
-int Mysql::Mysql_insert_user(std::string _userID, std::string _password, std::string _userName)
+int Mysql::Mysql_insert_user(std::string &_userID, std::string &_password, std::string &_userName)
 {
     int ret = -1;
 
@@ -171,7 +173,7 @@ int Mysql::Mysql_insert_user(std::string _userID, std::string _password, std::st
     return ret = 0;
 }
 
-int Mysql::Mysql_check_user(std::string _userID, std::string _password, std::string &_user_name)
+int Mysql::Mysql_check_user(std::string &_userID, std::string &_password, std::string &_user_name)
 {
     int ret = -1;
 
@@ -213,6 +215,88 @@ int Mysql::Mysql_check_user(std::string _userID, std::string _password, std::str
     else
     {
         return ret = -2;
+    }
+
+    mysql_free_result(m_mysql_res);
+    return ret = 0;
+}
+
+int Mysql::Mysql_Get_friendList(std::string &_userID, std::vector<std::string> &_friendList)
+{
+    int ret = -1;
+
+    // assembly command
+    std::stringstream strstream;
+    strstream << "SELECT * FROM " << m_dataBase << ".Friend WHERE userID_1 = '" << _userID << "' OR userID_2 = '" << _userID << "';";
+    std::string commond = strstream.str();
+
+    // execute the command
+    if (mysql_real_query(&m_mysql, commond.c_str(), strlen(commond.c_str())))
+    {
+        printf("mysql select fail : %d \n", mysql_errno(&m_mysql));
+        printf("commond : %s\n", commond.c_str());
+        return ret = -1;
+    }
+
+    // get the result
+    m_mysql_res = mysql_store_result(&m_mysql);
+    if (nullptr == m_mysql_res)
+    {
+        printf("mysql store result fail : %d \n", mysql_errno(&m_mysql));
+        return ret = -1;
+    }
+
+    // get the result data
+    MYSQL_ROW row;
+    ret = 0;
+    if (row = mysql_fetch_row(m_mysql_res))
+    {
+        if (_userID == row[0])
+        {
+            _friendList.push_back(row[1]);
+        }
+        else
+        {
+            _friendList.push_back(row[0]);
+        }
+        ret++;
+    }
+    else
+    {
+        return ret = -2;
+    }
+
+    mysql_free_result(m_mysql_res);
+    return ret;
+}
+
+int Mysql::Mysql_Set_userState(std::string &_userID, UserState _state)
+{
+
+    int ret = -1;
+
+    if (checkRepeat_UserID(_userID) <= 0)
+    {
+        printf("mysql:Mysql_Set_userState: userID no exists\n");
+        return ret = -2;
+    }
+
+    std::stringstream strstream;
+    strstream << "UPDATE " << m_dataBase << ".User SET state = " << _state << " WHERE user_id = '" << _userID << "';";
+
+    std::string commond = strstream.str();
+    if (mysql_real_query(&m_mysql, commond.c_str(), strlen(commond.c_str())))
+    {
+        printf("mysql execute fail : %d \n", mysql_errno(&m_mysql));
+        printf("commond : %s\n", commond.c_str());
+        return ret = -1;
+    }
+
+    m_mysql_res = mysql_store_result(&m_mysql);
+    if (nullptr == m_mysql_res)
+    {
+        printf("mysql store result fail : %d \n", mysql_errno(&m_mysql));
+        return ret = -1;
     }
 
     mysql_free_result(m_mysql_res);
