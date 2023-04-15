@@ -35,18 +35,18 @@ using namespace Log;
 // client list
 struct s_socket_client
 {
-    std::string user_id; // client's ID
+    std::string UserID; // client's ID
 
-    int socket; // client`s socket
-    char ip[INET_ADDRSTRLEN];
-    int port;
-    sockaddr_in socket_Addr; // client`s addr
+    int Socket; // client`s socket
+    char IP[INET_ADDRSTRLEN];
+    int Port;
+    sockaddr_in Socket_Addr; // client`s addr
 };
 
 // users
 struct s_user_Information
 {
-    int socket = -1;
+    int Socket = -1;
 
     std::string UserID = "";
     std::string UserName = "";
