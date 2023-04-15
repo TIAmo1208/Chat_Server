@@ -26,13 +26,14 @@ enum UserState
     UserState_Offline = 3
 };
 
+struct s_Friend_info
+{
+    std::string UserID = "";
+    std::string UserName = "";
+};
+
 class Mysql
 {
-public:
-    // return ptr of the mysql system
-    // The Log_init function needs to be called first
-    static Mysql *instance();
-
 public:
     /**
      * @brief initialization mysql server
@@ -80,7 +81,7 @@ public:
      * @return -1: server is error;
      * @return -2: information error;
      */
-    int Mysql_Get_friendList(std::string &_userID, std::vector<std::string> &_friendList);
+    int Mysql_Get_friendList(std::string &_userID, std::vector<s_Friend_info> &_friendList);
 
     /**
      * @brief set user state
@@ -97,7 +98,12 @@ private:
     Mysql(/* args */);
 
 public:
+    // return ptr of the mysql system
+    // The Log_init function needs to be called first
+    static Mysql *instance();
+
     void del_object();
+
     ~Mysql();
 };
 
