@@ -10,13 +10,17 @@ endif()
 file(GLOB SOURCES "./src/*.cpp")
 file(GLOB HEADERS "./include/*.h")
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
 
 # add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
+# 
+add_executable(Demo ${SOURCES} ${HEADERS} "./Demo.cpp")
+target_link_libraries(Demo pthread)
 
 # Copy header files to INSTALL path
 install(FILES ${HEADERS} DESTINATION include)
-
 # Copy library file to INSTALL path
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
