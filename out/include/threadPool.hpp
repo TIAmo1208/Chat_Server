@@ -1,8 +1,8 @@
 #ifndef __THREADPOOL_H__
 #define __THREADPOOL_H__
 
-#include <future>
 #include <functional>
+#include <future>
 
 class ThreadPool
 {
@@ -11,7 +11,7 @@ public:
     ~ThreadPool();
 
     template <typename Func, typename... Args>
-    std::future<typename std::result_of<Func(Args...)>::type> ThreadPool_add_Task(Func &&_func, Args &&...args)
+    std::future<typename std::result_of<Func(Args...)>::type> ThreadPool_add_Task(Func &&_func, Args &&... args)
     {
         using return_type = typename std::result_of<Func(Args...)>::type;
 
@@ -21,8 +21,7 @@ public:
 
         // get the return value of the task function
         std::future<return_type> res = task->get_future();
-        ThreadPool_addTask([task]()
-                           { (*task)(); });
+        ThreadPool_addTask([task]() { (*task)(); });
 
         // return the future, get the value when you need
         return res;

@@ -3,16 +3,20 @@
 
 /*______ I N C L U D E - F I L E S ___________________________________________*/
 
-#include <vector>
-#include <queue>
 #include <memory>
+#include <queue>
+#include <vector>
 
-#include <thread>
-#include <mutex>
 #include <condition_variable>
+#include <mutex>
+#include <thread>
 
-#include <future>
 #include <functional>
+#include <future>
+
+//
+#include "Log.h"
+using namespace Log;
 
 /*______ F U N C T I O N _____________________________________________________*/
 
