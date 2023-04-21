@@ -1,25 +1,13 @@
-#include "../include/threadPool.hpp"
-#include "../include/threadPool_impl.h"
+#include "threadPool.hpp"
+#include "threadPool_impl.h"
+#include <memory>
 
-ThreadPool_impl *g_threadPool = nullptr;
+std::shared_ptr<ThreadPool_impl> g_threadPool = nullptr;
 
-ThreadPool::ThreadPool(int _threadNum)
-{
-    g_threadPool = new ThreadPool_impl(_threadNum);
-}
+ThreadPool::ThreadPool(int _threadNum) { g_threadPool = std::make_shared<ThreadPool_impl>(_threadNum); }
 
-ThreadPool::~ThreadPool()
-{
-    g_threadPool->join();
-    delete g_threadPool;
-}
+ThreadPool::~ThreadPool() { g_threadPool->join(); }
 
-void ThreadPool::ThreadPool_addTask(std::function<void()> &&_func)
-{
-    g_threadPool->add_Task(_func);
-}
+void ThreadPool::ThreadPool_addTask(std::function<void()> &&_func) { g_threadPool->add_Task(_func); }
 
-void ThreadPool::ThreadPool_join()
-{
-    g_threadPool->join();
-}
+void ThreadPool::ThreadPool_join() { g_threadPool->join(); }

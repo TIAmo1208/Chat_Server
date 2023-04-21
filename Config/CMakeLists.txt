@@ -7,17 +7,15 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/../../out/" CACHE STRING "The path to use for make install" FORCE)
 endif()
 
-include_directories(include ../out/include)
-include_directories(include ./include)
+include_directories(
+    ../out/include
+    ./include
+)
 
 file(GLOB SOURCES "./src/*.cpp")
 file(GLOB HEADERS "./include/*.h" "./include/*.hpp")
 
 link_directories(../out/lib/)
-
-# add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
-# Copy file to INSTALL path
-# install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
 
 # # add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})

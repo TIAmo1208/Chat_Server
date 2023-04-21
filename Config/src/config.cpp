@@ -11,7 +11,7 @@
 
 /*______ I N C L U D E - F I L E S ___________________________________________*/
 
-#include "../include/config.h"
+#include "config.h"
 
 using namespace CONFIG;
 
@@ -151,7 +151,7 @@ int Config::Config_readFile(std::string _configFilePath)
                 std::string value_name, value_str;
                 // Gets the node name and value
                 {
-                    int i = 0;
+                    int i    = 0;
                     int size = str_buff.size();
                     char temp_str[1024];
 
@@ -234,7 +234,7 @@ int Config::Config_readFile(std::string _configFilePath)
                         break;
 
                     case Node_Type_Float:
-                        m_config_list->ConfigList_setValue(node_name.c_str(), value_name.c_str(), (float)atof(value_str.c_str()));
+                        m_config_list->ConfigList_setValue(node_name.c_str(), value_name.c_str(), (float) atof(value_str.c_str()));
                         break;
 
                     case Node_Type_String:
@@ -415,7 +415,7 @@ int ConfigList::ConfigList_setValue(const char *_NodeName, const char *_ValueNam
     // Add new parameter
     union un_value value;
     value.value_int = _value;
-    retval = this->ConfigList_setValue(_NodeName, _ValueName, value);
+    retval          = this->ConfigList_setValue(_NodeName, _ValueName, value);
 
     return retval;
 }
@@ -432,7 +432,7 @@ int ConfigList::ConfigList_setValue(const char *_NodeName, const char *_ValueNam
     // Add new parameter
     union un_value value;
     value.value_float = _value;
-    retval = this->ConfigList_setValue(_NodeName, _ValueName, value);
+    retval            = this->ConfigList_setValue(_NodeName, _ValueName, value);
 
     return retval;
 }
@@ -466,7 +466,7 @@ int ConfigList::ConfigList_setValue(const char *_NodeName, const char *_ValueNam
     // Add new parameter
     union un_value value;
     value.value_bool = _value;
-    retval = this->ConfigList_setValue(_NodeName, _ValueName, value);
+    retval           = this->ConfigList_setValue(_NodeName, _ValueName, value);
 
     return retval;
 }
