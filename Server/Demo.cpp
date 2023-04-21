@@ -11,25 +11,28 @@
 #ifndef __DEMO_H__
 #define __DEMO_H__
 
-#include "../../out/include/config.h"
-#include "../../out/include/Log.h"
-#include "../../out/include/threadPool.hpp"
-#include "../../out/include/Mysql.h"
+#include "Log.h"
+#include "Mysql.h"
+#include "Server_config.h"
+#include "config.h"
+
+#include "Server_Interface.hpp"
+#include "Server_impl.hpp"
+#include <chrono>
 #include <thread>
 
-#include "../include/socket.h"
-#include "../include/socket_config.h"
+using namespace Log;
 
 int main(const int _argc, char *const _argv[])
 {
     // config
     CONFIG::Config cfg(_argc, _argv);
 
-    int log_level = 3;
-    bool log_file_enable = true;
+    int log_level             = 3;
+    bool log_file_enable      = true;
     std::string log_file_path = "./log_server";
-    int server_port = 8000;
-    int threads = 5;
+    int server_port           = 8000;
+    int threads               = 5;
 
     cfg.Config_GetValue(CONFIG_MODULE_LOG, CONFIG_LOG_LogLevel, log_level);
     cfg.Config_GetValue(CONFIG_MODULE_LOG, CONFIG_LOG_LogFileEnable, log_file_enable);
@@ -40,25 +43,32 @@ int main(const int _argc, char *const _argv[])
     // log
     LogSystem::instance()->Log_init(log_level, log_file_enable, log_file_path);
 
-    // thread pool
-    ThreadPool *threadpool = new ThreadPool(threads);
-
     // Mysql
-    std::string host = "localhost";
-    std::string name = "TIAmo";
+    std::string host     = "localhost";
+    std::string name     = "TIAmo";
     std::string password = "sqm19991208";
     std::string database = "Chat_server";
     Mysql::instance()->Mysql_init(host, name, password, database, 3306);
 
     // socket
-    Socket *socket = new Socket(server_port);
-    std::thread thread_socket = std::thread(&Socket::socket_accept, socket, threadpool);
-    Log_info("Thread : socket_accept id : %d", thread_socket.get_id());
+    std::shared_ptr<Server_Interface> server = std::make_shared<Server_impl>();
 
-    thread_socket.join();
+    int ret = server->Server_Init(8888, threads);
+    if (SOCKET_ERROR == ret)
+    {
+        do
+        {
+            std::this_thread::sleep_for(std::chrono::seconds(3));
+            ret = server->Server_Init(8888, threads);
+        } while (SOCKET_SUCCESS == ret);
+    }
 
-    delete socket;
-    delete threadpool;
+    while (1)
+    {
+        server->Server_Update();
+    }
+
+    //
     LogSystem::instance()->del_object();
     Mysql::instance()->del_object();
 

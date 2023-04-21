@@ -1,0 +1,39 @@
+---
+# 语言: None, Cpp, Java, JavaScript, ObjC, Proto, TableGen, TextProto
+Language:	Cpp
+BasedOnStyle: LLVM
+
+# 缩进宽度
+IndentWidth:	4
+# 行长度限制
+ColumnLimit: 140
+# 对齐等号
+AlignConsecutiveAssignments: true
+# 对齐注释
+AlignTrailingComments:	true
+
+# 短的if语句在同一行
+AllowShortIfStatementsOnASingleLine:	false
+# 短的循环在同一行
+AllowShortLoopsOnASingleLine:	false
+# 短的函数在同一行
+AllowShortFunctionsOnASingleLine: All
+# 允许函数声明的所有参数在放在下一行
+AllowAllParametersOfDeclarationOnNextLine:	false
+# 
+BreakBeforeBraces: Allman
+
+# public、private等的偏移
+AccessModifierOffset:   -4
+
+# 排序
+SortIncludes: true
+SortUsingDeclarations: true
+
+# 保留空行
+KeepEmptyLinesAtTheStartOfBlocks: false
+# 调用函数时与参数中间的空格
+SpaceBeforeParens: ControlStatements
+# 在强制转换的括号后加空格
+SpaceAfterCStyleCast: true
+UseTab: Never

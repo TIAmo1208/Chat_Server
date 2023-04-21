@@ -11,8 +11,13 @@
 
 /*______ I N C L U D E - F I L E S ___________________________________________*/
 
-#include "../include/Log.h"
+#include "Log.h"
+#include <cstring>
 #include <mutex>
+#include <stdarg.h> // parameter list
+#include <unistd.h>
+
+#include "Log_Tools.h"
 
 using namespace Log;
 
@@ -34,57 +39,40 @@ using namespace Log;
 
 static LogSystem *m_logSystem = nullptr; // log system ptr
 
-bool m_outputFile = true; // write into file
-std::string m_filePath = "Log";
+Log_Tools *m_logTools = nullptr;
+
+bool m_initState  = false; // true when init is done
+bool m_outputFile = true;  // write into file
+
+std::string m_filePath    = "./Log";
+std::string m_logFileName = "";
+
+std::mutex m_mutex;
 
 int m_log_level = LOG_LEVEL_INFO;
 
-std::string m_logFileName = "";
-std::ofstream m_WriteStream;
-bool m_initState = false; // true when init is done
-
-std::mutex m_lock;
-
-/*______ L O C A L - F U N C T I O N _________________________________________*/
-
-// write the log into the file without time and log type
-void Log_write(const char *pLogFormat);
-
-// read and print the log file
-void Log_print_logfile();
-
-// generate log txt
-char *setLogTxt(const char *logLevel, const char *pLogFormat);
+int m_outputTime = 10;
 
 /*______ F U N C T I O N _____________________________________________________*/
 
-// using the time as file name
-std::string getLogFileName(std::string filePath)
+/// @brief default constructor
+LogSystem::LogSystem() {}
+
+/// @brief destructor
+LogSystem::~LogSystem()
 {
-    // get log file's name
-    time_t t = time(0);
-    char fileName[32];
-    strftime(fileName, sizeof(fileName), "%Y-%m-%d", localtime(&t));
-    strcat(fileName, ".log");
+    printf("\nyou can see the Log file in the %s\n", m_filePath.c_str());
 
-    // Created when no folder exists
-    if (F_OK != access(filePath.c_str(), 0))
-    {
-        std::string temp = "mkdir " + filePath;
-        int ret = system(temp.c_str());
-    }
-
-    filePath = filePath + "/" + fileName;
-
-    return filePath;
+    delete m_logTools;
 }
 
-// init and return ptr of the log system
+/// @brief init and return ptr of the log system
+/// @return
 LogSystem *LogSystem::instance()
 {
     if (m_logSystem == nullptr)
     {
-        std::unique_lock<std::mutex> lock(m_lock);
+        std::unique_lock<std::mutex> lock(m_mutex);
         if (m_logSystem == nullptr)
         {
             m_logSystem = new LogSystem();
@@ -93,155 +81,156 @@ LogSystem *LogSystem::instance()
     return m_logSystem;
 }
 
+/// @brief release instance
+void LogSystem::del_object()
+{
+    if (m_logSystem != nullptr)
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        if (m_logSystem != nullptr)
+        {
+            delete m_logSystem;
+            m_logSystem = nullptr;
+        }
+    }
+}
+
+/// @brief initialization
+/// @param _log_level
+/// @param _log_file_enable
+/// @param _filePath
 void LogSystem::Log_init(int _log_level, bool _log_file_enable, std::string _filePath)
 {
     if (m_initState)
     {
-        Log_debug("The Log Log has completed initialization, the log path:%s", m_filePath);
+        Log_debug("Log: Log has completed initialization, the log path:%s", m_filePath.c_str());
         return;
     }
 
-    m_log_level = _log_level;
+    m_log_level  = _log_level;
     m_outputFile = _log_file_enable;
-    m_filePath = _filePath;
+    m_filePath   = _filePath;
 
     if (m_outputFile)
     {
-        std::string tmpName(getLogFileName(m_filePath));
-
-        // if not exist the log file,create and write new log
-        if (0 != access(tmpName.c_str(), 0))
-        {
-            Log_write("start create new log file");
-        }
-        else
-        {
-            m_WriteStream = std::ofstream(m_logFileName = tmpName, std::ios::app);
-            if (!m_WriteStream.is_open())
-            {
-                m_outputFile = false;
-                log_fatal("the ofstream open fail, please check the file path");
-                return;
-            }
-        }
+        m_logTools = new Log_Tools();
+        m_logTools->Log_Tools_Init(m_outputFile, _filePath);
     }
 
     m_initState = true;
 }
 
-// default constructor
-LogSystem::LogSystem() {}
-
-// destructor
-LogSystem::~LogSystem()
-{
-    char path[255];
-    if (NULL != getcwd(path, 255))
-        printf("\nyou can see the Log file in the %s/%s\n", path, m_logFileName.c_str());
-
-    if (m_WriteStream.is_open())
-    {
-        m_WriteStream.close();
-    }
-}
-
-void LogSystem::del_object()
-{
-    if (m_logSystem != nullptr)
-    {
-        delete m_logSystem;
-        m_logSystem = nullptr;
-    }
-}
-
-// print debug into the screan
+/// @brief print debug into the screan
+/// @param file
+/// @param line
+/// @param pLogFormat
+/// @param
+/// @return
 bool LogSystem::log_debug(const char *file, const int line, const char *pLogFormat, ...)
 {
-    if (m_log_level < LOG_LEVEL_DEBUG)
-        return false;
-
     // dereference
     va_list paramList, parm_copy;
     va_start(paramList, pLogFormat);
     va_copy(parm_copy, paramList);
 
-    int size = vsnprintf(0, 0, pLogFormat, paramList) + 1;
-    char *temp = (char *)malloc(size);
+    int size   = vsnprintf(0, 0, pLogFormat, paramList) + 1;
+    char *temp = new char[size];
     vsnprintf(temp, size, pLogFormat, parm_copy);
 
     va_end(paramList);
 
-    //
-    char *logTxt = setLogTxt(TYPE_LOG_DEBUG, temp);
-    printf("%s\t %s:%d\n", logTxt, file, line);
+    // 填充log
+    char *logTxt = m_logTools->Log_Tools_Construct_LogTxt(TYPE_LOG_DEBUG, temp);
+    if (m_log_level >= LOG_LEVEL_DEBUG)
+    {
+        printf("%s\t %s:%d\n", logTxt, file, line);
+    }
 
+    // 输出日志文件
     if (m_outputFile)
-        Log_write(logTxt);
+    {
+        m_logTools->Log_Tools_Write_File(logTxt, strlen(logTxt));
+    }
 
-    free(temp);
-    free(logTxt);
+    delete[] temp;
+    delete[] logTxt;
     return true;
 }
 
-// print info into the screan
+/// @brief print info into the screan
+/// @param pLogFormat
+/// @param
+/// @return
 bool LogSystem::log_info(const char *pLogFormat, ...)
 {
-    if (m_log_level < LOG_LEVEL_INFO)
-        return false;
-
     // dereference
     va_list paramList, parm_copy;
     va_start(paramList, pLogFormat);
     va_copy(parm_copy, paramList);
 
-    int size = vsnprintf(0, 0, pLogFormat, paramList) + 1;
-    char *temp = (char *)malloc(size);
+    int size   = vsnprintf(0, 0, pLogFormat, paramList) + 1;
+    char *temp = new char[size];
     vsnprintf(temp, size, pLogFormat, parm_copy);
 
     va_end(paramList);
 
-    //
-    char *logTxt = setLogTxt(TYPE_LOG_INFO, temp);
-    printf("%s\n", logTxt);
+    // 填充log
+    char *logTxt = m_logTools->Log_Tools_Construct_LogTxt(TYPE_LOG_INFO, temp);
+    if (m_log_level >= LOG_LEVEL_INFO)
+    {
+        printf("%s\n", logTxt);
+    }
 
+    // 输出日志文件
     if (m_outputFile)
-        Log_write(logTxt);
+    {
+        m_logTools->Log_Tools_Write_File(logTxt, strlen(logTxt));
+    }
 
-    free(temp);
-    free(logTxt);
+    delete[] temp;
+    delete[] logTxt;
     return true;
 }
 
-// print error into the screan
+/// @brief print error into the screan
+/// @param pLogFormat
+/// @param
+/// @return
 bool LogSystem::log_error(const char *pLogFormat, ...)
 {
-    if (m_log_level < LOG_LEVEL_ERROR)
-        return false;
-
     // dereference
     va_list paramList, parm_copy;
     va_start(paramList, pLogFormat);
     va_copy(parm_copy, paramList);
 
-    int size = vsnprintf(0, 0, pLogFormat, paramList) + 1;
-    char *temp = (char *)malloc(size);
+    int size   = vsnprintf(0, 0, pLogFormat, paramList) + 1;
+    char *temp = new char[size];
     vsnprintf(temp, size, pLogFormat, parm_copy);
 
     va_end(paramList);
 
-    //
-    char *logTxt = setLogTxt(TYPE_LOG_ERROR, temp);
-    printf("%s\n", logTxt);
+    // 填充log
+    char *logTxt = m_logTools->Log_Tools_Construct_LogTxt(TYPE_LOG_ERROR, temp);
+    if (m_log_level >= LOG_LEVEL_ERROR)
+    {
+        printf("%s\n", logTxt);
+    }
 
+    // 输出日志文件
     if (m_outputFile)
-        Log_write(logTxt);
+    {
+        m_logTools->Log_Tools_Write_File(logTxt, strlen(logTxt));
+    }
 
-    free(temp);
-    free(logTxt);
+    delete[] temp;
+    delete[] logTxt;
     return true;
 }
 
-// print warn into the screan
+/// @brief print warn into the screan
+/// @param pLogFormat
+/// @param
+/// @return
 bool LogSystem::log_warn(const char *pLogFormat, ...)
 {
     if (m_log_level < LOG_LEVEL_WARN)
@@ -252,54 +241,71 @@ bool LogSystem::log_warn(const char *pLogFormat, ...)
     va_start(paramList, pLogFormat);
     va_copy(parm_copy, paramList);
 
-    int size = vsnprintf(0, 0, pLogFormat, paramList) + 1;
-    char *temp = (char *)malloc(size);
+    int size   = vsnprintf(0, 0, pLogFormat, paramList) + 1;
+    char *temp = new char[size];
     vsnprintf(temp, size, pLogFormat, parm_copy);
 
     va_end(paramList);
 
-    //
-    char *logTxt = setLogTxt(TYPE_LOG_WARN, temp);
-    printf("%s\n", logTxt);
+    // 填充log
+    char *logTxt = m_logTools->Log_Tools_Construct_LogTxt(TYPE_LOG_WARN, temp);
+    if (m_log_level >= LOG_LEVEL_WARN)
+    {
+        printf("%s\n", logTxt);
+    }
 
+    // 输出日志文件
     if (m_outputFile)
-        Log_write(logTxt);
+    {
+        m_logTools->Log_Tools_Write_File(logTxt, strlen(logTxt));
+    }
 
-    free(temp);
-    free(logTxt);
+    delete[] temp;
+    delete[] logTxt;
     return true;
 }
 
-// print fatal into the screan
+/// @brief print fatal into the screan
+/// @param pLogFormat
+/// @param
+/// @return
 bool LogSystem::log_fatal(const char *pLogFormat, ...)
 {
-    if (m_log_level == LOG_LEVEL_NONE)
-        return false;
-
     // dereference
     va_list paramList, parm_copy;
     va_start(paramList, pLogFormat);
     va_copy(parm_copy, paramList);
 
-    int size = vsnprintf(0, 0, pLogFormat, paramList) + 1;
-    char *temp = (char *)malloc(size);
+    int size   = vsnprintf(0, 0, pLogFormat, paramList) + 1;
+    char *temp = new char[size];
     vsnprintf(temp, size, pLogFormat, parm_copy);
 
     va_end(paramList);
 
-    //
-    char *logTxt = setLogTxt(TYPE_LOG_FATAL, temp);
-    printf("%s\n", logTxt);
+    // 填充log
+    char *logTxt = m_logTools->Log_Tools_Construct_LogTxt(TYPE_LOG_INFO, temp);
+    if (m_log_level != LOG_LEVEL_NONE)
+    {
+        printf("%s\n", logTxt);
+    }
 
+    // 输出日志文件
     if (m_outputFile)
-        Log_write(logTxt);
+    {
+        m_logTools->Log_Tools_Write_File(logTxt, strlen(logTxt));
+    }
 
-    free(temp);
-    free(logTxt);
+    delete[] temp;
+    delete[] logTxt;
     return true;
 }
 
-//
+/// @brief
+/// @param file
+/// @param line
+/// @param logType
+/// @param pLogFormat
+/// @param
 void LogSystem::operator()(const char *file, const int line, const char *logType, const char *pLogFormat, ...)
 {
     // dereference
@@ -307,88 +313,52 @@ void LogSystem::operator()(const char *file, const int line, const char *logType
     va_start(paramList, pLogFormat);
     va_copy(parm_copy, paramList); // need copy
 
-    int size = vsnprintf(0, 0, pLogFormat, paramList) + 1; // get size and clear paramList
-    char *temp = (char *)malloc(size);
+    int size   = vsnprintf(0, 0, pLogFormat, paramList) + 1; // get size and clear paramList
+    char *temp = new char[size];
     vsnprintf(temp, size, pLogFormat, parm_copy);
 
     va_end(paramList);
 
-    // create log txt
-    char *logTxt = setLogTxt(logType, temp);
-    sprintf(logTxt, "%s %s:%d", logTxt, file, line);
-    printf("%s\n", logTxt);
+    // 填充log
 
+    char *logTxt = m_logTools->Log_Tools_Construct_LogTxt(logType, temp);
+    if (m_log_level != LOG_LEVEL_NONE)
+    {
+        printf("%s\n", logTxt);
+    }
+
+    // 输出日志文件
     if (m_outputFile)
-        Log_write(logTxt);
+    {
+        m_logTools->Log_Tools_Write_File(logTxt, strlen(logTxt));
+    }
 
-    free(temp);
-    free(logTxt);
+    delete[] temp;
+    delete[] logTxt;
 }
 
-//
+/// @brief Set the state of the output file
+/// @param state true: ouput; false: No output
 void LogSystem::Log_set_OutputFile(bool state) { m_outputFile = state; }
 
-//
-void LogSystem::Log_set_FilePath(std::string filePath) { m_filePath = filePath; }
+/// @brief set file path
+/// @param filePath
+void LogSystem::Log_set_FilePath(std::string &filePath)
+{
+    if (m_logTools->Log_Tools_set_FilePath(m_filePath) >= 0)
+    {
+        m_filePath = filePath;
+    }
+}
 
-//
+/// @brief set log level
+/// @param _level
 void LogSystem::Log_set_LogLevel(int _level) { m_log_level = _level; }
 
-/*______ L O C A L - F U N C T I O N _________________________________________*/
-
-// write the log into the file without time and log type
-void Log_write(const char *pLogFormat)
+/// @brief set the log output time
+/// @param _seconds The default time is 10 seconds
+void Log_set_LogOutput_Time(int _seconds = 10)
 {
-    // write into file
-    std::string tmpName(getLogFileName(m_filePath));
-    if (tmpName != m_logFileName)
-    {
-        if (m_WriteStream.is_open())
-            m_WriteStream.close();
-
-        //
-        m_WriteStream = std::ofstream(m_logFileName = tmpName, std::ios::app);
-        if (!m_WriteStream.is_open())
-        {
-            m_outputFile = false;
-            Log_error("the ofstream open fail, please check the file path");
-            return;
-        }
-    }
-
-    if (m_WriteStream.is_open())
-        m_WriteStream << pLogFormat << std::endl;
-}
-
-// read and print the log file
-void Log_print_logfile()
-{
-    std::ifstream readStream(m_logFileName, std::ios::in);
-    if (!readStream.is_open())
-    {
-        Log_error("the ifstream open fail, please check the file path");
-        return;
-    }
-
-    char buf[1024] = {0};
-    while (readStream.getline(buf, sizeof(buf)))
-    {
-        Log_error("%s", buf);
-    }
-}
-
-// generate log txt
-char *setLogTxt(const char *logLevel, const char *pLogFormat)
-{
-    // time for log
-    char date[32];
-    time_t t = time(0);
-    strftime(date, sizeof(date), "%H:%M:%S", localtime(&t));
-
-    // log txt
-    char *logTxt = new char[2048];
-    memset(logTxt, 0, sizeof(&logTxt));
-    sprintf(logTxt, "[%s]:[%s]\t%s", date, logLevel, pLogFormat);
-
-    return logTxt;
+    m_outputTime = _seconds;
+    m_logTools->Log_Tools_set_LogOutput_Time(m_outputTime);
 }
