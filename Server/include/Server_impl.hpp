@@ -1,34 +1,29 @@
 #ifndef __SERVER_IMPL_H__
 #define __SERVER_IMPL_H__
 
-#include "Server_Interface.hpp"
+/*______ I N C L U D E - F I L E S ___________________________________________*/
 
+#include "Server_Interface.hpp"
+#include "Server_Tools.hpp"
 #include "Server_config.h"
 
-// Log
-#include "Log.h"
-using namespace Log;
-// Mysql
-#include "Mysql.h"
-
 #ifdef __linux__
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <fcntl.h> // set no blocking
 #include <arpa/inet.h>
-
-// #include <unistd.h>
+#include <fcntl.h> // set no blocking
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
 // #include <sys/select.h>
 #endif
 
-#include <map>
-#include <queue>
-#include <math.h>
+#include "threadPool.hpp" // ThreadPol
 
-//
-#include <thread>
 #include <condition_variable>
+#include <map>
+#include <memory>
 #include <mutex>
+#include <queue>
+#include <string>
 
 /*______ S T R U C T _________________________________________________________*/
 
@@ -48,28 +43,28 @@ struct s_user_Information
 {
     int Socket = -1;
 
-    std::string UserID = "";
-    std::string UserName = "";
+    std::string UserID         = "";
+    std::string UserName       = "";
     std::string Connect_UserID = "";
 };
 
 // task
 struct s_event_task
 {
-    int socket = -1;
-    int code;
-    int bits_high;
-    int bits_low;
+    int socket       = -1;
+    std::string code = "";
+    int bits_high    = 0;
+    int bits_low     = 0;
 
-    std::string recvBuff;
+    std::string recvBuff = "";
 };
 
-/*______ F U N C T I O N _____________________________________________________*/
+/*______ C L A S S ___________________________________________________________*/
 
 class Server_impl : public Server_Interface
 {
-private:
-    /* data */
+    /*______ F U N C T I O N _________________________________________________*/
+
 public:
     Server_impl(/* args */);
     virtual ~Server_impl();
@@ -81,7 +76,7 @@ public:
      * @param port
      * @return int
      */
-    virtual int Server_Init(int port = 8888) override;
+    virtual int Server_Init(int port = 8888, int threadNum = 5) override;
 
     /**
      * @brief main Update
@@ -98,21 +93,67 @@ public:
 
 private:
     /**
-     * @brief
+     * @brief Receive client message
      *
      * @param _readfds
      */
-    void Server_Receive_Event(fd_set &_readfds);
+    void Server_Receive_Event(fd_set _readfds);
 
+    /**
+     * @brief Accept client connection
+     *
+     */
     void Server_Accept_Client();
 
-    int Server_Receive_DataFrames(int _clientSocket, s_user_Information &_user, char *_recvBuff);
-
+    /**
+     * @brief Handle disconnected clients
+     *
+     * @param _index
+     */
     void Server_Disconnect_Client(int _index);
 
+    /**
+     * @brief Data processing thread
+     *
+     */
     void Server_Thread_Task();
 
+    /**
+     * @brief Handles the task of connect server
+     *
+     * @param _userid
+     * @param _task
+     */
+    void Server_Process_ConnectServer(std::string _userid, s_event_task _task);
+
+    /**
+     * @brief Handles the task of connect other client
+     *
+     * @param _userid
+     * @param _task
+     */
+    void Server_Process_ConnectClient(std::string _userid, s_event_task _task);
+
+    /**
+     * @brief Handles the task of client send message to other client
+     *
+     * @param _userid
+     * @param _task
+     */
+    void Server_Process_SendMessage(std::string _userid, s_event_task _task);
+
+    /**
+     * @brief
+     *
+     * @param _userid
+     * @param _task
+     * @param _userName
+     */
+    void Server_Process_ReturnFriendList(std::string _userid, s_event_task _task, std::string _userName);
+
 private:
+    /*______ V A R I A B L E _________________________________________________*/
+
     recvMsg_CallbackFunc m_recvMsgCallback = nullptr;
 
     int m_domain;
@@ -121,24 +162,29 @@ private:
     int m_port;          // port
     int m_socket_server; // server socket
 
-    bool isInit = false;          // initialization flag
+    bool isInit          = false; // initialization flag
     bool m_TerminateFlag = false; // stop flag (true: stop)
 
-    int m_fd_array[FD_ARRAY_MAXSIZE];
-    int m_fd_array_length = 0; // fd_array's elements number
+    // fd list
+    Thread_List m_fd_array;
 
     // <socket, information>
-    std::map<int, struct s_socket_client> m_client_list;
+    Thread_Map<int, struct s_socket_client> m_client_list;
 
     // <userID, information>
-    std::map<std::string, struct s_user_Information> m_users;
+    Thread_Map<std::string, struct s_user_Information> m_users;
 
     // Task
-    std::thread m_thread_task;
+    Thread_Queue<s_event_task> m_queue_task;
     std::condition_variable m_condition_task;
-    std::queue<s_event_task> m_queue_task;
-    std::mutex m_mutex_task;
     bool m_new_task = false;
+    std::mutex m_mutex_newTask;
+
+    // thread pool
+    std::shared_ptr<ThreadPool> m_threadPool;
+
+    // Tools
+    Server_Tools m_tools;
 };
 
 #endif // __SERVER_IMPL_H__

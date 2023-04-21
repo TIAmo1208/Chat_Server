@@ -1,7 +1,11 @@
 #ifndef __SERVER_INTERFACE_H__
 #define __SERVER_INTERFACE_H__
 
+/*______ I N C L U D E - F I L E S ___________________________________________*/
+
 #include <string>
+
+/*______ C L A S S ___________________________________________________________*/
 
 /**
  * @brief The Insterface of Server
@@ -17,7 +21,7 @@ public:
      * @param port
      * @return int
      */
-    virtual int Server_Init(int port) = 0;
+    virtual int Server_Init(int port, int threadNum) = 0;
 
     /**
      * @brief main Update

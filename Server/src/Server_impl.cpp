@@ -3,16 +3,22 @@
 
 #include "Server_impl.hpp"
 
+#include "Log.h" // Log
+#include <cstring>
+#include <mutex>
+using namespace Log;
+
+#include "Mysql.h" // Mysql
+
+#include <math.h>
+#include <thread>
+
 /*______ D E F I N E _________________________________________________________*/
 
-// 客户端登录
-#define CODE_CONNECT_SERVER 0x0000
-// 连接其他客户端
-#define CODE_CONNECT_CLIENT 0x0001
-// 客户端发送信息
-#define CODE_SEND_MESSAGE 0x0002
-// 客户端发送文件
-#define CODE_SEND_FILE 0x0003
+const char CODE_CONNECT_SERVER[] = "0000"; // 客户端登录
+const char CODE_CONNECT_CLIENT[] = "0001"; // 连接其他客户端
+const char CODE_SEND_MESSAGE[]   = "0002"; // 客户端发送信息
+const char CODE_SEND_FILE[]      = "0003"; // 客户端发送文件
 
 // 登录成功返回用户名
 #define CODE_LOGIN_RETURN "1000"
@@ -37,36 +43,19 @@
 #define CODE_SERVER_VERIFICATION_ERROR "e005"
 #define SOCKET_ERROR_VERIFICATION(target) send(target, CODE_SERVER_VERIFICATION_ERROR, sizeof(CODE_SERVER_VERIFICATION_ERROR), 0);
 
-/*______ L O C A L - F U N C T I O N _________________________________________*/
-
-/// @brief convert char to int
-/// @param str
-/// @return code
-int convert_hexChar_to_int(std::string &str);
-
-/// @brief convert char to int
-/// @param str
-/// @return code
-int convert_Char_to_int(std::string &_str);
-
-/// @brief convert int to char
-/// @param _num
-/// @param _ret
-void convert_int_to_char(int _num, std::string &_ret);
-
 /*______ F U N C T I O N _____________________________________________________*/
 
 Server_impl::Server_impl(/* args */)
 {
-    m_domain = SOCKET_CONFIG_DOMAIN;     // IPv4
-    m_type = SOCKET_CONFIG_TYPE;         // Types of sockets
-    m_protocol = SOCKET_CONFIG_PROTOCOL; // protocols
-    m_port = SOCKET_CONFIG_PORT;         // port
+    this->m_domain   = SOCKET_CONFIG_DOMAIN;   // IPv4
+    this->m_type     = SOCKET_CONFIG_TYPE;     // Types of sockets
+    this->m_protocol = SOCKET_CONFIG_PROTOCOL; // protocols
+    this->m_port     = SOCKET_CONFIG_PORT;     // port
 }
 
-Server_impl::~Server_impl() {}
+Server_impl::~Server_impl() { this->m_threadPool->ThreadPool_join(); }
 
-int Server_impl::Server_Init(int port)
+int Server_impl::Server_Init(int port, int threadNum)
 {
     Log_debug("Server_Init: Start");
 
@@ -76,30 +65,30 @@ int Server_impl::Server_Init(int port)
         return SOCKET_ERROR;
     }
 
-    m_port = port;
+    this->m_port = port;
     Log_info("---- Chat Server\tversion:%0.2f ----", VERSION);
 
     // socket
     Log_debug("Server_Init: init");
-    int ret = socket(m_domain, m_type, m_protocol);
+    int ret = socket(this->m_domain, this->m_type, this->m_protocol);
     if (SOCKET_ERROR == ret)
     {
         Log_error("Server_Init: init fail");
         return SOCKET_ERROR;
     }
-    m_socket_server = ret;
+    this->m_socket_server = ret;
 
     // Set non-blocking
-    int flags = fcntl(m_socket_server, F_GETFL, 0);
-    fcntl(m_socket_server, F_SETFL, flags | O_NONBLOCK);
+    int flags = fcntl(this->m_socket_server, F_GETFL, 0);
+    fcntl(this->m_socket_server, F_SETFL, flags | O_NONBLOCK);
 
     // bind
     Log_debug("Server_Init: bind");
     sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(m_port);
+    addr.sin_family      = AF_INET;
+    addr.sin_port        = htons(this->m_port);
     addr.sin_addr.s_addr = INADDR_ANY;
-    ret = bind(m_socket_server, (struct sockaddr *)&addr, sizeof(sockaddr_in));
+    ret                  = bind(this->m_socket_server, (struct sockaddr *) &addr, sizeof(sockaddr_in));
     if (SOCKET_ERROR == ret)
     {
         Log_error("Server_Init: bind fail");
@@ -107,26 +96,27 @@ int Server_impl::Server_Init(int port)
     }
 
     // listen
-    Log_info("Server_Init: listen (port:%d) ...", m_port);
-    ret = listen(m_socket_server, 5);
+    Log_info("Server_Init: listen (port:%d) ...", this->m_port);
+    ret = listen(this->m_socket_server, 5);
     if (SOCKET_ERROR == ret)
     {
         Log_error("Server_Init: listen fail");
         return ret;
     }
 
-    Log_debug("Server_Init: socket init 127.0.0.1:%d", m_port);
+    Log_debug("Server_Init: socket init 127.0.0.1:%d", this->m_port);
 
     // Init fd array
-    for (int i = 0; i < FD_ARRAY_MAXSIZE; ++i)
-    {
-        m_fd_array[i] = -1;
-    }
-    m_fd_array[0] = m_socket_server;
-    m_fd_array_length = 1;
+    this->m_fd_array.add(0, this->m_socket_server);
 
     // create task thread
-    m_thread_task = std::thread(&Server_impl::Server_Thread_Task, this);
+    this->m_threadPool = std::make_shared<ThreadPool>(threadNum);
+    // 等待一段时间，让线程池完成初始化，防止任务加入失败
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    //
+
+    this->m_threadPool->ThreadPool_add_Task(&Server_impl::Server_Thread_Task, this);
+    Log_debug("Server_Init: m_threadPool.use_count:%d", this->m_threadPool.use_count());
 
     // Init end
     isInit = true;
@@ -140,7 +130,12 @@ void Server_impl::Server_Update()
     Log_debug("Server_Update: Start");
 
     //
-    if (m_TerminateFlag)
+    if (!this->isInit)
+    {
+        Log_warn("Server_Update: uninitialized !!!");
+        return;
+    }
+    if (this->m_TerminateFlag)
     {
         Log_warn("Server_Update: Terminate Flag is true");
         return;
@@ -152,25 +147,27 @@ void Server_impl::Server_Update()
     FD_ZERO(&readfds);
     FD_ZERO(&writefds);
     FD_ZERO(&errorfds);
-    int max_fd = m_fd_array[0];
+    int max_fd = this->m_fd_array[0];
 
     // fill fd_set
     int temp_count = 0;
     for (int i = 0; i < FD_ARRAY_MAXSIZE; ++i)
     {
-        if (m_fd_array[i] == -1)
+        if (this->m_fd_array[i] == -1)
         {
             continue;
         }
 
-        FD_SET(m_fd_array[i], &readfds);
-        if (m_fd_array[i] > max_fd)
+        Log_debug("Server_Update: add fd[%d]:%d ", i, this->m_fd_array[i]);
+
+        FD_SET(this->m_fd_array[i], &readfds);
+        if (this->m_fd_array[i] > max_fd)
         {
-            max_fd = m_fd_array[i];
+            max_fd = this->m_fd_array[i];
         }
         temp_count++;
 
-        if (m_fd_array_length <= temp_count)
+        if (m_fd_array.lenght() <= temp_count)
         {
             break;
         }
@@ -181,7 +178,7 @@ void Server_impl::Server_Update()
     //  __timeout: 设置等待时间; 0:非阻塞; NULL:阻塞; 其他数值:等待指定时间;
     int ret = select(max_fd + 1, &readfds, &writefds, &errorfds, 0);
 
-    Log_debug("Server_Update: select End \n");
+    Log_debug("Server_Update: select End ");
 
     //
     if (SELECT_ERROR == ret)
@@ -198,41 +195,42 @@ void Server_impl::Server_Update()
     {
         // server socket readable
         //  the server have new client
-        if (FD_ISSET(m_socket_server, &readfds))
+        if (FD_ISSET(this->m_socket_server, &readfds))
         {
+            // this->m_threadPool->ThreadPool_add_Task(&Server_impl::Server_Accept_Client, this);
             Server_Accept_Client();
         }
 
-        //
+        // this->m_threadPool->ThreadPool_add_Task(&Server_impl::Server_Receive_Event, this, readfds);
         Server_Receive_Event(readfds);
     }
 
-    Log_debug("Server_Update: End \n");
+    Log_debug("Server_Update: End ");
 }
 
-void Server_impl::Server_Receive_Event(fd_set &_readfds)
+void Server_impl::Server_Receive_Event(fd_set _readfds)
 {
     Log_debug("Server_Receive_Event: Start");
 
     char recvBuff[BUFF_MAX_SIZE];
-    std::string str_recvBuff, str_codeBuff, str_message;
+    std::string str_recvBuff, str_subTemp, str_message;
     int temp_count = 1; // 已处理数量
 
     for (int i = 1; i < FD_ARRAY_MAXSIZE; ++i)
     {
         // check socket read state
-        if (m_fd_array[i] == -1 || !FD_ISSET(m_fd_array[i], &_readfds))
+        if (this->m_fd_array[i] == -1 || !FD_ISSET(this->m_fd_array[i], &_readfds))
         {
             continue;
         }
-        Log_debug("Server_Receive_Event: %s:%d Client have new message", m_client_list[m_fd_array[i]].IP, m_client_list[m_fd_array[i]].Port);
+        Log_debug("Server_Receive_Event: %s:%d Client have new message", this->m_client_list[this->m_fd_array[i]].IP,
+                  this->m_client_list[this->m_fd_array[i]].Port);
 
         // receive data
         memset(recvBuff, 0, BUFF_MAX_SIZE);
-        if (recv(m_fd_array[i], recvBuff, BUFF_MAX_SIZE, 0) <= 0)
+        if (recv(this->m_fd_array[i], recvBuff, BUFF_MAX_SIZE, 0) <= 0)
         {
             Server_Disconnect_Client(i);
-            Log_error("Server_Receive_Event: client connection down");
             continue;
         }
         Log_debug("Server_Receive_Event: recvBuff: %s", recvBuff);
@@ -240,44 +238,41 @@ void Server_impl::Server_Receive_Event(fd_set &_readfds)
         temp_count++;
 
         // Get the message type
-        str_codeBuff = str_recvBuff.substr(0, 4);
-        int code = convert_hexChar_to_int(str_codeBuff);
-        if (SOCKET_ERROR == code)
-        {
-            SOCKET_ERROR_RECV(m_fd_array[i]);
-            Log_error("Server_Receive_Event: %s:%d send an error code", m_client_list[m_fd_array[i]].IP, m_client_list[m_fd_array[i]].Port);
-            continue;
-        }
+        std::string code = str_recvBuff.substr(0, CODE_LENGHT);
 
         // get 4bit high code
-        str_codeBuff = str_recvBuff.substr(4, 4);
-        int high = convert_Char_to_int(str_codeBuff);
+        str_subTemp = str_recvBuff.substr(CODE_POSITION_HIGHT, CODE_LENGHT);
+        int high    = m_tools.Server_Tools_convert_Char_to_int(str_subTemp);
 
         // get 4bit low code
-        str_codeBuff = str_recvBuff.substr(8, 4);
-        int low = convert_Char_to_int(str_codeBuff);
+        str_subTemp = str_recvBuff.substr(CODE_POSITION_LOW, CODE_LENGHT);
+        int low     = m_tools.Server_Tools_convert_Char_to_int(str_subTemp);
 
         // get message
         str_message = str_recvBuff.substr(12, str_recvBuff.length() - 12);
 
         // add task
-        Log_debug("Server_Receive_Event: code:%d, 4bit high:%d, 4bit low:%d, str_message:%s", code, high, low, str_message.c_str());
-        s_event_task task = s_event_task{m_fd_array[i], code, high, low, str_message};
+        Log_debug("Server_Receive_Event: code:%s, 4bit high:%d, 4bit low:%d, "
+                  "str_message:%s",
+                  code.c_str(), high, low, str_message.c_str());
+        s_event_task task = s_event_task{this->m_fd_array[i], code, high, low, str_message};
+        //
+        this->m_queue_task.push(task);
         {
-            std::unique_lock<std::mutex> lock(m_mutex_task);
-            m_queue_task.push(task);
+            std::unique_lock<std::mutex> lock(this->m_mutex_newTask);
             this->m_new_task = true;
-            m_condition_task.notify_one();
         }
+        this->m_condition_task.notify_one();
+        Log_debug("Server_Receive_Event: notify one task");
 
         // process all client, return
-        if (m_fd_array_length <= temp_count)
+        if (m_fd_array.lenght() <= temp_count)
         {
             break;
         }
     }
 
-    Log_debug("Server_Receive_Event: End \n");
+    Log_debug("Server_Receive_Event: End ,count:%d", temp_count);
 }
 
 void Server_impl::Server_Accept_Client()
@@ -285,16 +280,16 @@ void Server_impl::Server_Accept_Client()
     Log_debug("Server_Accept_Client: Start");
 
     // return when array is full
-    if (m_fd_array_length >= FD_ARRAY_MAXSIZE)
+    if (m_fd_array.lenght() >= FD_ARRAY_MAXSIZE)
     {
-        Log_warn("The maximum number of connections is reached");
+        Log_warn("The maximum number of connections is reached, length:%d", m_fd_array.lenght());
         return;
     }
 
     // accept new client
     sockaddr_in clientAddr;
-    int len = sizeof(clientAddr);
-    int connect = accept(m_socket_server, (sockaddr *)&clientAddr, (socklen_t *)&len);
+    int len     = sizeof(clientAddr);
+    int connect = accept(this->m_socket_server, (sockaddr *) &clientAddr, (socklen_t *) &len);
     if (SOCKET_ERROR == connect)
     {
         Log_error("The client connection failure");
@@ -304,7 +299,7 @@ void Server_impl::Server_Accept_Client()
 
     // get the client
     struct s_socket_client client;
-    client.Socket = connect;
+    client.Socket      = connect;
     client.Socket_Addr = clientAddr;
 
     // get the IP and port
@@ -312,52 +307,53 @@ void Server_impl::Server_Accept_Client()
     client.Port = ntohs(client.Socket_Addr.sin_port);
 
     // save the information
-    m_client_list[client.Socket] = client;
+    this->m_client_list[client.Socket] = client;
 
     Log_info("Server_Accept_Client: accept new client %s:%d", client.IP, client.Port);
 
     // save into fd list
-    if (m_fd_array[m_fd_array_length] == -1)
+    if (this->m_fd_array[m_fd_array.lenght()] == -1)
     {
-        m_fd_array[m_fd_array_length] = connect;
-        m_fd_array_length++;
+        this->m_fd_array.add(m_fd_array.lenght(), connect);
     }
     else
     {
         for (int i = 1; i < FD_ARRAY_MAXSIZE; ++i)
         {
-            if (m_fd_array[i] == -1)
+            if (this->m_fd_array[i] == -1)
             {
-                m_fd_array[i] = connect;
-                m_fd_array_length++;
+                this->m_fd_array.add(i, connect);
                 break;
             }
         }
     }
 
-    Log_debug("Server_Accept_Client: End \n");
+    Log_debug("Server_Accept_Client: End ");
 }
 
 void Server_impl::Server_Disconnect_Client(int _index)
 {
     //
-    std::string client_userID = m_client_list[m_fd_array[_index]].UserID;
-    if (!m_client_list.empty())
+    std::string client_userID;
+    client_userID = this->m_client_list[this->m_fd_array[_index]].UserID;
+    if (!this->m_client_list.empty())
     {
-        m_client_list.erase(m_fd_array[_index]);
+        this->m_client_list.erase(this->m_fd_array[_index]);
     }
-    if (!m_users.empty() && !m_users[client_userID].UserID.empty())
+
+    if (!this->m_users.empty() && !this->m_users[client_userID].UserID.empty())
     {
-        m_users.erase(client_userID);
+        this->m_users.erase(client_userID);
     }
 
     // 修改用户状态
     Mysql::instance()->Mysql_Set_userState(client_userID, UserState::UserState_Offline);
 
     //
-    close(m_fd_array[_index]);
-    m_fd_array[_index] = -1;
-    m_fd_array_length--;
+    close(this->m_fd_array[_index]);
+    Log_info("Server_Receive_Event: client:%s:%d connection down", this->m_client_list[this->m_fd_array[_index]].IP,
+             this->m_client_list[this->m_fd_array[_index]].Port);
+    this->m_fd_array.erase(_index);
 }
 
 void Server_impl::Server_Thread_Task()
@@ -366,191 +362,64 @@ void Server_impl::Server_Thread_Task()
 
     int ret;
 
-    while (!m_TerminateFlag)
+    while (!this->m_TerminateFlag)
     {
         // wait for task
-        bool empty = false;
+        if (this->m_queue_task.empty())
         {
-            std::unique_lock<std::mutex> lock(m_mutex_task);
-            empty = m_queue_task.empty();
-        }
-        if (empty)
-        {
-            this->m_new_task = false;
+            {
+                std::unique_lock<std::mutex> lock(this->m_mutex_newTask);
+                this->m_new_task = false;
+            }
             std::mutex mutex;
             std::unique_lock<std::mutex> lock(mutex);
-            Log_debug("Server_Thread_Task: wait for task \n");
-            m_condition_task.wait(lock, [this]
-                                  { return this->m_new_task | this->m_TerminateFlag; });
+            Log_debug("Server_Thread_Task: wait for task ");
+            this->m_condition_task.wait(lock, [this] { return this->m_new_task | this->m_TerminateFlag; });
             Log_debug("Server_Thread_Task: be notify");
         }
 
+        //
         if (this->m_TerminateFlag)
-            return;
+            break;
 
         // get task from queue
-        s_event_task task;
-        {
-            std::unique_lock<std::mutex> lock(m_mutex_task);
-            task = m_queue_task.front();
-            m_queue_task.pop();
-        }
+        s_event_task task = this->m_queue_task.pop();
         if (task.socket == -1)
         {
             Log_warn("Server_Thread_Task: task is null");
             continue;
         }
-        Log_debug("Server_Thread_Task: socket:%d, code:%d, bits_high:%d, bits_low:%d, recvBuff:%s", task.socket, task.code, task.bits_high, task.bits_low, task.recvBuff.c_str());
+        Log_debug("Server_Thread_Task: socket:%d, code:%s, bits_high:%d, bits_low:%d, recvBuff:%s", task.socket, task.code.c_str(),
+                  task.bits_high, task.bits_low, task.recvBuff.c_str());
 
         // get user
-        std::string user_id = m_client_list[task.socket].UserID;
+        std::string user_id;
+        user_id = this->m_client_list[task.socket].UserID;
 
         // process task
         // connect server
         if (CODE_CONNECT_SERVER == task.code)
         {
-            Log_debug("Server_Thread_Task: CODE_CONNECT_SERVER");
+            Log_debug("Server_Thread_Task: add task:CODE_CONNECT_SERVER");
+            this->m_threadPool->ThreadPool_add_Task(&Server_impl::Server_Process_ConnectServer, this, user_id, task);
 
-            std::string recv_userID = task.recvBuff.substr(0, task.bits_high);
-            std::string userName, recv_password;
-
-            // 验证数据库
-            recv_password = task.recvBuff.substr(task.bits_high, task.bits_low);
-            ret = Mysql::instance()->Mysql_check_user(recv_userID, recv_password, userName);
-            // 获取结果
-            switch (ret)
-            {
-            case -1:
-                Log_fatal("Server_Thread_Task: Mysql_check_user mysql server error");
-                continue;
-            case -2:
-                Log_debug("Server_Thread_Task: Mysql_check_user fail");
-                SOCKET_ERROR_VERIFICATION(task.socket);
-                continue;
-            }
-
-            // 填充数据
-            Log_debug("Server_Thread_Task: Mysql_check_user success");
-            Log_debug("Server_Thread_Task: userName:%s", userName.c_str());
-            user_id = m_client_list[task.socket].UserID = recv_userID;
-            m_users[user_id] = s_user_Information{task.socket, user_id, userName};
-
-            // 组建报文 发送
-            {
-                std::stringstream strstream;
-                std::string len;
-
-                convert_int_to_char(userName.length(), len);
-                strstream << CODE_LOGIN_RETURN << len << "0000" << userName;
-                std::string buff = strstream.str();
-                Log_debug("Server_Thread_Task: send commond:%s", buff.c_str());
-
-                // 返回用户名
-                send(task.socket, buff.c_str(), buff.length(), 0);
-                Log_info("Server_Thread_Task: %s : %s connect server", user_id.c_str(), userName.c_str());
-            }
-
-            // 修改用户状态
-            Mysql::instance()->Mysql_Set_userState(user_id, UserState::UserState_Online);
-
-            // 获取好友列表
-            std::vector<s_Friend_info> userList;
-            ret = Mysql::instance()->Mysql_Get_friendList(user_id, userList);
-            // 获取结果
-            switch (ret)
-            {
-            case -1:
-                Log_fatal("Server_Thread_Task: Mysql_check_user mysql server error");
-                continue;
-            case -2:
-                Log_debug("Server_Thread_Task: Mysql_check_user fail");
-                SOCKET_ERROR_VERIFICATION(task.socket);
-                continue;
-            }
-
-            //
-            for (int i = 0, size = userList.size(); i < size; ++i)
-            {
-                std::stringstream strstream;
-                std::string len_id, len_name;
-
-                convert_int_to_char(userList[i].UserID.length(), len_id);
-                convert_int_to_char(userList[i].UserName.length(), len_name);
-                strstream << CODE_FRIEND_RETURN << len_id << len_name << userList[i].UserID << userList[i].UserName;
-                std::string buff = strstream.str();
-
-                // 返回列表
-                send(task.socket, buff.c_str(), buff.length(), 0);
-                Log_debug("Server_Thread_Task: return %s's friend, buff:%s ", userName.c_str(), buff.c_str());
-            }
+            // Server_Process_ConnectServer(user_id, task);
         }
         // connect client
         else if (CODE_CONNECT_CLIENT == task.code)
         {
-            Log_debug("Server_Thread_Task: CODE_CONNECT_CLIENT");
+            Log_debug("Server_Thread_Task: add task:CODE_CONNECT_SERVER");
+            this->m_threadPool->ThreadPool_add_Task(&Server_impl::Server_Process_ConnectClient, this, user_id, task);
 
-            if (m_users[user_id].UserID == "")
-            {
-                Log_warn("Server_Thread_Task: connect object's User ID is null");
-                SOCKET_ERROR_NotLoggedIn(task.socket);
-                continue;
-            }
-
-            if (task.bits_low == task.recvBuff.length())
-            {
-                m_users[user_id].Connect_UserID = task.recvBuff;
-                Log_debug("Server_Thread_Task: %s connect %s", m_users[user_id].UserID, m_users[user_id].Connect_UserID);
-            }
-            else
-            {
-                Log_warn("Server_Thread_Task: recvBuff length:%d is error,low bit:%d", task.recvBuff.length(), task.bits_low);
-                continue;
-            }
+            // Server_Process_ConnectClient(user_id, task);
         }
         // client send message
         else if (CODE_SEND_MESSAGE == task.code)
         {
-            Log_debug("Server_Thread_Task: CODE_SEND_MESSAGE");
+            Log_debug("Server_Thread_Task: add task:CODE_CONNECT_SERVER");
+            this->m_threadPool->ThreadPool_add_Task(&Server_impl::Server_Process_SendMessage, this, user_id, task);
 
-            if (m_users[user_id].UserID == "")
-            {
-                Log_warn("Server_Thread_Task: send object's User ID is null");
-                SOCKET_ERROR_NotLoggedIn(task.socket);
-                continue;
-            }
-
-            //
-            std::string connectID = task.recvBuff.substr(0, task.bits_high);
-            m_users[user_id].Connect_UserID = connectID;
-            Log_debug("Server_Thread_Task: send object: connectID:%s, socket:%d", m_users[user_id].Connect_UserID.c_str(), m_users[connectID].Socket);
-            if (connectID == "")
-            {
-                Log_warn("Server_Thread_Task: no connect other client");
-                SOCKET_ERROR_NoConnect(task.socket);
-                continue;
-            }
-            else if (m_users[connectID].Socket == -1)
-            {
-                Log_warn("Server_Thread_Task: send object is no exist");
-                SOCKET_ERROR_ConnectObject_NoExist(task.socket);
-                continue;
-            }
-
-            //
-            std::stringstream strstream;
-            std::string userID_len, msg_len;
-
-            convert_int_to_char(user_id.length(), userID_len);
-            convert_int_to_char(task.bits_low, msg_len);
-            strstream << CODE_LOGIN_RETURN << userID_len << msg_len << user_id << task.recvBuff.substr(task.bits_high, task.bits_low);
-            std::string buff = strstream.str();
-
-            //
-            send(m_users[connectID].Socket, buff.c_str(), buff.size(), 0);
-            Log_debug("Server_Thread_Task: %s:%d send message to %s:%d, send message:%s",
-                      m_client_list[task.socket].IP, m_client_list[task.socket].Port,
-                      m_client_list[m_users[connectID].Socket].IP, m_client_list[m_users[connectID].Socket].Port,
-                      buff.c_str());
+            // Server_Process_SendMessage(user_id, task);
         }
         else
         {
@@ -563,68 +432,171 @@ void Server_impl::Server_Thread_Task()
     Log_debug("Server_Thread_Task: End, thread id: %d", std::this_thread::get_id());
 }
 
-void Server_impl::Server_Reg_recvMsgCallbackFunc(recvMsg_CallbackFunc _callback)
+void Server_impl::Server_Process_ConnectServer(std::string _userid, s_event_task _task)
 {
-    m_recvMsgCallback = _callback;
-}
+    Log_debug("Server_Process_ConnectServer: CODE_CONNECT_SERVER");
 
-/*______ L O C A L - F U N C T I O N _________________________________________*/
+    std::string recv_userID = _task.recvBuff.substr(0, _task.bits_high);
+    std::string userName, recv_password;
+    int ret = -1;
 
-int convert_hexChar_to_int(std::string &str)
-{
-    int temp[4];
-    int ret = 0, size = 4;
-
-    for (int i = 0; i < size; ++i)
+    // 验证数据库
+    recv_password = _task.recvBuff.substr(_task.bits_high, _task.bits_low);
+    ret           = Mysql::instance()->Mysql_check_user(recv_userID, recv_password, userName);
+    // 获取结果
+    switch (ret)
     {
-        if (str[i] >= 48 && str[i] <= 57)
-        {
-            temp[i] = str[i] - 48;
-        }
-        else if (str[i] >= 65 && str[i] <= 70)
-        {
-            temp[i] = str[i] - 55;
-        }
-        ret += temp[i] * pow(16, size - 1 - i);
+    case -1:
+        Log_fatal("Server_Thread_Task: Mysql_check_user mysql server error");
+        return;
+    case -2:
+        Log_debug("Server_Thread_Task: Mysql_check_user fail");
+        SOCKET_ERROR_VERIFICATION(_task.socket);
+        return;
     }
 
-    if (ret < 0)
-        return -1;
+    // 填充数据
+    Log_debug("Server_Thread_Task: Mysql_check_user success");
+    Log_debug("Server_Thread_Task: userName:%s", userName.c_str());
+    _userid = this->m_client_list[_task.socket].UserID = recv_userID;
+
+    this->m_users[_userid] = s_user_Information{_task.socket, _userid, userName};
+
+    // 组建报文 发送
+    {
+        std::stringstream strstream;
+        std::string len;
+
+        m_tools.Server_Tools_convert_int_to_char(userName.length(), len);
+        strstream << CODE_LOGIN_RETURN << len << "0000" << userName;
+        std::string buff = strstream.str();
+        Log_debug("Server_Thread_Task: send commond:%s", buff.c_str());
+
+        // 返回用户名
+        send(_task.socket, buff.c_str(), buff.length(), 0);
+        Log_info("Server_Thread_Task: %s : %s connect server", _userid.c_str(), userName.c_str());
+    }
+
+    // 修改用户状态
+    Mysql::instance()->Mysql_Set_userState(_userid, UserState::UserState_Online);
+
+    // 添加任务：获取返回好友列表
+
+    this->m_threadPool->ThreadPool_add_Task(&Server_impl::Server_Process_ReturnFriendList, this, _userid, _task, userName);
+}
+
+void Server_impl::Server_Process_ConnectClient(std::string _userid, s_event_task _task)
+{
+    Log_debug("Server_Process_ConnectClient: CODE_CONNECT_CLIENT");
+
+    if (this->m_users[_userid].UserID == "")
+    {
+        Log_warn("Server_Process_ConnectClient: connect object's User ID is null");
+        SOCKET_ERROR_NotLoggedIn(_task.socket);
+        return;
+    }
+
+    if (_task.bits_low == _task.recvBuff.length())
+    {
+        this->m_users[_userid].Connect_UserID = _task.recvBuff;
+        Log_debug("Server_Process_ConnectClient: %s connect %s", this->m_users[_userid].UserID.c_str(),
+                  this->m_users[_userid].Connect_UserID.c_str());
+    }
     else
-        return ret;
+    {
+        Log_warn("Server_Process_ConnectClient: recvBuff length:%d is error,low "
+                 "bit:%d",
+                 _task.recvBuff.length(), _task.bits_low);
+        return;
+    }
 }
 
-int convert_Char_to_int(std::string &_str)
+void Server_impl::Server_Process_SendMessage(std::string _userid, s_event_task _task)
 {
-    int temp[4];
-    int ret = 0, size = 4;
+    Log_debug("Server_Process_SendMessage: CODE_SEND_MESSAGE");
 
-    for (int i = 0; i < size; ++i)
+    std::string connectID;
+    int connectSocket;
     {
-        if (_str[i] >= 48 && _str[i] <= 57)
+        if (this->m_users[_userid].UserID == "")
         {
-            temp[i] = _str[i] - 48;
+            Log_warn("Server_Process_SendMessage: send object's User ID is null");
+            SOCKET_ERROR_NotLoggedIn(_task.socket);
+            return;
         }
-        ret += temp[i] * pow(10, size - 1 - i);
+
+        //
+        connectID     = _task.recvBuff.substr(0, _task.bits_high);
+        connectSocket = this->m_users[connectID].Socket;
+
+        this->m_users[_userid].Connect_UserID = connectID;
+        Log_debug("Server_Process_SendMessage: send object: connectID:%s, socket:%d", this->m_users[_userid].Connect_UserID.c_str(),
+                  connectSocket);
+        if (connectID == "")
+        {
+            Log_warn("Server_Process_SendMessage: no connect other client");
+            SOCKET_ERROR_NoConnect(_task.socket);
+            return;
+        }
+        else if (connectSocket == -1)
+        {
+            Log_warn("Server_Process_SendMessage: send object is no exist");
+            SOCKET_ERROR_ConnectObject_NoExist(_task.socket);
+            return;
+        }
     }
 
-    if (ret < 0)
-        return -1;
-    else
-        return ret;
+    //
+    std::stringstream strstream;
+    std::string userID_len, msg_len;
+
+    m_tools.Server_Tools_convert_int_to_char(_userid.length(), userID_len);
+    m_tools.Server_Tools_convert_int_to_char(_task.bits_low, msg_len);
+    strstream << CODE_TRANSMIT_MESSAGE << userID_len << msg_len << _userid
+              << _task.recvBuff.substr(_task.bits_high, _task.bits_low).c_str();
+    std::string buff = strstream.str();
+
+    //
+    send(connectSocket, buff.c_str(), buff.size(), 0);
+    Log_debug("Server_Process_SendMessage: %s:%d send message to %s:%d, send "
+              "message:%s",
+              this->m_client_list[_task.socket].IP, this->m_client_list[_task.socket].Port, this->m_client_list[connectSocket].IP,
+              this->m_client_list[connectSocket].Port, buff.c_str());
 }
 
-void convert_int_to_char(int _num, std::string &_ret)
+void Server_impl::Server_Process_ReturnFriendList(std::string _userid, s_event_task _task, std::string _userName)
 {
-    int size = 4;
-    char temp[4];
-
-    for (int i = 0; i < size; ++i)
+    // 获取好友列表
+    std::vector<s_Friend_info> userList;
+    int ret = Mysql::instance()->Mysql_Get_friendList(_userid, userList);
+    // 获取结果
+    switch (ret)
     {
-        int series = pow(10, size - i - 1);
-        temp[i] = (char)((_num / series) + 48);
-        _num = _num % series;
+    case -1:
+        Log_fatal("Server_Thread_Task: Mysql_check_user mysql server error");
+        return;
+    case -2:
+        Log_debug("Server_Thread_Task: Mysql_check_user fail");
+        SOCKET_ERROR_VERIFICATION(_task.socket);
+        return;
     }
 
-    _ret = temp;
+    // 返回好友列表到 Client
+    for (int i = 0, size = userList.size(); i < size; ++i)
+    {
+        std::stringstream strstream;
+        std::string len_id, len_name;
+
+        m_tools.Server_Tools_convert_int_to_char(userList[i].UserID.length(), len_id);
+        m_tools.Server_Tools_convert_int_to_char(userList[i].UserName.length(), len_name);
+        strstream << CODE_FRIEND_RETURN << len_id << len_name << userList[i].UserID << userList[i].UserName;
+        std::string buff = strstream.str();
+
+        // 返回列表
+        send(_task.socket, buff.c_str(), buff.length(), 0);
+        Log_debug("Server_Thread_Task: return %s's friend, buff:%s ", _userName.c_str(), buff.c_str());
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
 }
+
+void Server_impl::Server_Reg_recvMsgCallbackFunc(recvMsg_CallbackFunc _callback) { this->m_recvMsgCallback = _callback; }

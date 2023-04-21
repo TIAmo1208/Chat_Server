@@ -11,10 +11,14 @@
 #ifndef __SOCKET_I_H__
 #define __SOCKET_I_H__
 
+/*______ I N C L U D E - F I L E S ___________________________________________*/
+
+#include <sys/select.h>
+
 /*______ D E F I N E _________________________________________________________*/
 
 //
-#define VERSION (0.4)
+#define VERSION (0.5)
 
 // socket config
 #define SOCKET_CONFIG_DOMAIN AF_INET;                // IPv4
@@ -46,5 +50,10 @@ constexpr int FD_ARRAY_MAXSIZE = sizeof(fd_set) * 8; // fd_array's max size
 //  server
 #define CONFIG_MODULE_SERVER "Server"
 #define CONFIG_SERVER_Server_Port "Server_Port"
+
+// code lenght
+const int CODE_LENGHT         = 4;
+const int CODE_POSITION_HIGHT = CODE_LENGHT;
+const int CODE_POSITION_LOW   = CODE_LENGHT + CODE_POSITION_HIGHT;
 
 #endif // __SOCKET_I_H__

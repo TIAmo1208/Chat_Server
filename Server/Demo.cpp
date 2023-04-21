@@ -11,25 +11,28 @@
 #ifndef __DEMO_H__
 #define __DEMO_H__
 
-#include "config.h"
 #include "Log.h"
-#include "threadPool.hpp"
 #include "Mysql.h"
-#include <thread>
+#include "Server_config.h"
+#include "config.h"
 
 #include "Server_Interface.hpp"
 #include "Server_impl.hpp"
+#include <chrono>
+#include <thread>
+
+using namespace Log;
 
 int main(const int _argc, char *const _argv[])
 {
     // config
     CONFIG::Config cfg(_argc, _argv);
 
-    int log_level = 3;
-    bool log_file_enable = true;
+    int log_level             = 3;
+    bool log_file_enable      = true;
     std::string log_file_path = "./log_server";
-    int server_port = 8000;
-    int threads = 5;
+    int server_port           = 8000;
+    int threads               = 5;
 
     cfg.Config_GetValue(CONFIG_MODULE_LOG, CONFIG_LOG_LogLevel, log_level);
     cfg.Config_GetValue(CONFIG_MODULE_LOG, CONFIG_LOG_LogFileEnable, log_file_enable);
@@ -40,12 +43,9 @@ int main(const int _argc, char *const _argv[])
     // log
     LogSystem::instance()->Log_init(log_level, log_file_enable, log_file_path);
 
-    // thread pool
-    // ThreadPool *threadpool = new ThreadPool(threads);
-
     // Mysql
-    std::string host = "localhost";
-    std::string name = "TIAmo";
+    std::string host     = "localhost";
+    std::string name     = "TIAmo";
     std::string password = "sqm19991208";
     std::string database = "Chat_server";
     Mysql::instance()->Mysql_init(host, name, password, database, 3306);
@@ -53,7 +53,15 @@ int main(const int _argc, char *const _argv[])
     // socket
     std::shared_ptr<Server_Interface> server = std::make_shared<Server_impl>();
 
-    server->Server_Init(8888);
+    int ret = server->Server_Init(8888, threads);
+    if (SOCKET_ERROR == ret)
+    {
+        do
+        {
+            std::this_thread::sleep_for(std::chrono::seconds(3));
+            ret = server->Server_Init(8888, threads);
+        } while (SOCKET_SUCCESS == ret);
+    }
 
     while (1)
     {
