@@ -8,23 +8,26 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 endif()
 
 # 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
-include_directories(/usr/include/mysql)
-# link_directories(/usr/lib/x86_64-linux-gnu)
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    /usr/include/mysql
+    ../out/include
+)
+link_directories(../out/lib/)
 
-# file(GLOB SOURCES "./src/*.cpp" "./Demo.cpp")
 file(GLOB SOURCES "./src/*.cpp")
 file(GLOB HEADERS "./include/*.hpp" "./include/*.h")
 
 #
-# add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
-
-#
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
+#
+add_executable(Demo ${SOURCES} ${HEADERS} "./Demo.cpp")
+
 # Copy header files to INSTALL path
 install(FILES ${HEADERS} DESTINATION include)
 # Copy library file to INSTALL path
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
 
 # link the mysql lib
-target_link_libraries(${PROJECT_NAME} mysqlclient pthread m rt atomic ssl crypto dl)
+target_link_libraries(${PROJECT_NAME} mysqlclient pthread m rt atomic ssl crypto dl Log)
+target_link_libraries(Demo mysqlclient pthread m rt atomic ssl crypto dl Log)
