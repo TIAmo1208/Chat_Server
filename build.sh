@@ -33,13 +33,14 @@ paths=()
 names=()
 
 ##------------
-Config_Path="$Home_Path/Config"
-paths+=($Config_Path)
-names+=('Config')
 
 Log_Path="$Home_Path/Log"
 paths+=($Log_Path)
 names+=('Log')
+
+Config_Path="$Home_Path/Config"
+paths+=($Config_Path)
+names+=('Config')
 
 ThreadPool_Path="$Home_Path/ThreadPool"
 paths+=($ThreadPool_Path)
@@ -74,13 +75,12 @@ for i in ${!paths[@]}; do
     cd build/
     echo -e "\033[0;94mBuilding and installing ${names[$i]}...\033[0m"
 
-    cmake ..
+    cmake .. -DCMAKE_EXPORT_COMPILE_COMMANDS=YES
     make -j 1  --trace 
     make -j install
 
     cd ..
     echo -e "\033[0;92m${names[$i]} built.\033[0m"
-    # rm -rf build
     cd $FRAMEWORK_PATH/
 done
 
