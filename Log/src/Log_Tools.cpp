@@ -6,7 +6,10 @@
 #include <chrono>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 #include <mutex>
+#include <sstream>
+#include <string>
 #include <thread>
 #include <unistd.h>
 
@@ -45,10 +48,10 @@ int Log_Tools::Log_Tools_Init(bool _output, std::string _filePath)
     }
 
     m_logFilePath = _filePath;
-    Log_Tools_UpdateLogFile();
+    Log_Tools_UpdateLogFile(m_logFilePath);
 
-    m_logBuff = new char[LOG_TXT_MAX_SIZE];
-    memset(m_logBuff, 0, LOG_TXT_MAX_SIZE);
+    m_logBuff = new char[LOG_BUFF_MAX_SIZE];
+    memset(m_logBuff, 0, LOG_BUFF_MAX_SIZE);
     m_thread_SaveLog = std::thread(&Log_Tools::Log_Tools_Save_Log, this);
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
@@ -94,16 +97,38 @@ char *Log_Tools::Log_Tools_Construct_LogTxt(const char *_logLevel, const char *_
 
 void Log_Tools::Log_Tools_set_LogOutput_Time(int _seconds) { m_output_time = _seconds; }
 
-void Log_Tools::Log_Tools_set_FilePath(std::string &_filePath)
+int Log_Tools::Log_Tools_set_FilePath(std::string &_filePath)
 {
-    m_logFilePath = _filePath;
-    Log_Tools_UpdateLogFile();
+    if (Log_Tools_UpdateLogFile(_filePath) >= 0)
+    {
+        m_logFilePath = _filePath;
+        return 0;
+    }
+    return -1;
 }
 
 /*______ L O C A L - F U N C T I O N _________________________________________*/
 
-void Log_Tools::Log_Tools_UpdateLogFile()
+int Log_Tools::Log_Tools_UpdateLogFile(std::string &_filePath)
 {
+    //
+    std::string tempPath = m_logFilePath;
+    if (_filePath == m_logFilePath)
+    {
+        tempPath = _filePath;
+    }
+
+    // Created when no folder exists
+    if (F_OK != access(tempPath.c_str(), 0))
+    {
+        std::string temp = "mkdir " + tempPath;
+        int ret          = system(temp.c_str());
+    }
+    else
+    {
+        return -1;
+    }
+
     // get log file's name
     time_t t = time(0);
     char fileName[32];
@@ -114,15 +139,8 @@ void Log_Tools::Log_Tools_UpdateLogFile()
     {
         m_logFileName = fileName;
 
-        // Created when no folder exists
-        if (F_OK != access(m_logFilePath.c_str(), 0))
-        {
-            std::string temp = "mkdir " + m_logFilePath;
-            int ret          = system(temp.c_str());
-        }
-
         // if not exist the log file, create and write new log
-        if (0 != access((m_logFilePath + "/" + m_logFileName).c_str(), 0))
+        if (0 != access((tempPath + "/" + m_logFileName).c_str(), 0))
         {
             // open file
             {
@@ -132,7 +150,7 @@ void Log_Tools::Log_Tools_UpdateLogFile()
                     m_WriteStream.close();
                 }
                 // open file
-                m_WriteStream = std::ofstream((m_logFilePath + "/" + m_logFileName), std::ios::app);
+                m_WriteStream = std::ofstream((tempPath + "/" + m_logFileName), std::ios::app);
             }
 
             //
@@ -152,9 +170,13 @@ void Log_Tools::Log_Tools_UpdateLogFile()
                 m_WriteStream.close();
             }
             // open file
-            m_WriteStream = std::ofstream((m_logFilePath + "/" + m_logFileName), std::ios::app);
+            m_WriteStream = std::ofstream((tempPath + "/" + m_logFileName), std::ios::app);
         }
     }
+
+    m_logFilePath = tempPath;
+
+    return 0;
 }
 
 void Log_Tools::Log_Tools_Save_Log()
@@ -167,7 +189,7 @@ void Log_Tools::Log_Tools_Save_Log()
                                          [this] { return this->m_buff_fill || this->m_stop; });
 
         // Update file path
-        Log_Tools_UpdateLogFile();
+        Log_Tools_UpdateLogFile(m_logFilePath);
 
         if (m_WriteStream.is_open())
         {

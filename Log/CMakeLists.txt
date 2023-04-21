@@ -16,6 +16,7 @@ include_directories(
 
 # add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
+set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 # 
 add_executable(Demo ${SOURCES} ${HEADERS} "./Demo.cpp")
 target_link_libraries(Demo pthread)

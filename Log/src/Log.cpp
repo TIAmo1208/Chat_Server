@@ -103,7 +103,7 @@ void LogSystem::Log_init(int _log_level, bool _log_file_enable, std::string _fil
 {
     if (m_initState)
     {
-        Log_debug("The Log Log has completed initialization, the log path:%s", m_filePath.c_str());
+        Log_debug("Log: Log has completed initialization, the log path:%s", m_filePath.c_str());
         return;
     }
 
@@ -134,7 +134,7 @@ bool LogSystem::log_debug(const char *file, const int line, const char *pLogForm
     va_copy(parm_copy, paramList);
 
     int size   = vsnprintf(0, 0, pLogFormat, paramList) + 1;
-    char *temp = (char *) malloc(size);
+    char *temp = new char[size];
     vsnprintf(temp, size, pLogFormat, parm_copy);
 
     va_end(paramList);
@@ -152,8 +152,8 @@ bool LogSystem::log_debug(const char *file, const int line, const char *pLogForm
         m_logTools->Log_Tools_Write_File(logTxt, strlen(logTxt));
     }
 
-    delete[](logTxt);
-    free(temp);
+    delete[] temp;
+    delete[] logTxt;
     return true;
 }
 
@@ -169,7 +169,7 @@ bool LogSystem::log_info(const char *pLogFormat, ...)
     va_copy(parm_copy, paramList);
 
     int size   = vsnprintf(0, 0, pLogFormat, paramList) + 1;
-    char *temp = (char *) malloc(size);
+    char *temp = new char[size];
     vsnprintf(temp, size, pLogFormat, parm_copy);
 
     va_end(paramList);
@@ -187,8 +187,8 @@ bool LogSystem::log_info(const char *pLogFormat, ...)
         m_logTools->Log_Tools_Write_File(logTxt, strlen(logTxt));
     }
 
-    delete[](logTxt);
-    free(temp);
+    delete[] temp;
+    delete[] logTxt;
     return true;
 }
 
@@ -204,7 +204,7 @@ bool LogSystem::log_error(const char *pLogFormat, ...)
     va_copy(parm_copy, paramList);
 
     int size   = vsnprintf(0, 0, pLogFormat, paramList) + 1;
-    char *temp = (char *) malloc(size);
+    char *temp = new char[size];
     vsnprintf(temp, size, pLogFormat, parm_copy);
 
     va_end(paramList);
@@ -222,8 +222,8 @@ bool LogSystem::log_error(const char *pLogFormat, ...)
         m_logTools->Log_Tools_Write_File(logTxt, strlen(logTxt));
     }
 
-    delete[](logTxt);
-    free(temp);
+    delete[] temp;
+    delete[] logTxt;
     return true;
 }
 
@@ -242,7 +242,7 @@ bool LogSystem::log_warn(const char *pLogFormat, ...)
     va_copy(parm_copy, paramList);
 
     int size   = vsnprintf(0, 0, pLogFormat, paramList) + 1;
-    char *temp = (char *) malloc(size);
+    char *temp = new char[size];
     vsnprintf(temp, size, pLogFormat, parm_copy);
 
     va_end(paramList);
@@ -260,8 +260,8 @@ bool LogSystem::log_warn(const char *pLogFormat, ...)
         m_logTools->Log_Tools_Write_File(logTxt, strlen(logTxt));
     }
 
-    delete[](logTxt);
-    free(temp);
+    delete[] temp;
+    delete[] logTxt;
     return true;
 }
 
@@ -277,7 +277,7 @@ bool LogSystem::log_fatal(const char *pLogFormat, ...)
     va_copy(parm_copy, paramList);
 
     int size   = vsnprintf(0, 0, pLogFormat, paramList) + 1;
-    char *temp = (char *) malloc(size);
+    char *temp = new char[size];
     vsnprintf(temp, size, pLogFormat, parm_copy);
 
     va_end(paramList);
@@ -295,8 +295,8 @@ bool LogSystem::log_fatal(const char *pLogFormat, ...)
         m_logTools->Log_Tools_Write_File(logTxt, strlen(logTxt));
     }
 
-    delete[](logTxt);
-    free(temp);
+    delete[] temp;
+    delete[] logTxt;
     return true;
 }
 
@@ -314,7 +314,7 @@ void LogSystem::operator()(const char *file, const int line, const char *logType
     va_copy(parm_copy, paramList); // need copy
 
     int size   = vsnprintf(0, 0, pLogFormat, paramList) + 1; // get size and clear paramList
-    char *temp = (char *) malloc(size);
+    char *temp = new char[size];
     vsnprintf(temp, size, pLogFormat, parm_copy);
 
     va_end(paramList);
@@ -333,8 +333,8 @@ void LogSystem::operator()(const char *file, const int line, const char *logType
         m_logTools->Log_Tools_Write_File(logTxt, strlen(logTxt));
     }
 
-    delete[](logTxt);
-    free(temp);
+    delete[] temp;
+    delete[] logTxt;
 }
 
 /// @brief Set the state of the output file
@@ -345,8 +345,10 @@ void LogSystem::Log_set_OutputFile(bool state) { m_outputFile = state; }
 /// @param filePath
 void LogSystem::Log_set_FilePath(std::string &filePath)
 {
-    m_filePath = filePath;
-    m_logTools->Log_Tools_set_FilePath(m_filePath);
+    if (m_logTools->Log_Tools_set_FilePath(m_filePath) >= 0)
+    {
+        m_filePath = filePath;
+    }
 }
 
 /// @brief set log level

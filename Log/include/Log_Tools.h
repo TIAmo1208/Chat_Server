@@ -23,12 +23,12 @@
 
 /*______ D E F I N E _________________________________________________________*/
 
-constexpr int LOG_TXT_MAX_SIZE         = (512 * 1024);
-constexpr int LOG_TXT_OUTPUT_THRESHOLD = LOG_TXT_MAX_SIZE * 0.9;
+const constexpr int LOG_BUFF_MAX_SIZE        = (512 * 1024);
+const constexpr int LOG_TXT_OUTPUT_THRESHOLD = LOG_BUFF_MAX_SIZE * 0.9;
 #define LOG_OUTPUT_TIME 10
 
-#define LOG_TXT_MAX_SIZE 1024
-#define TIME_DATA_SIZE 10
+const constexpr int LOG_TXT_MAX_SIZE = 2048;
+const constexpr int TIME_DATA_SIZE   = 10;
 
 /*______ C L A S S ___________________________________________________________*/
 namespace Log
@@ -62,11 +62,13 @@ public:
     /// @brief set file path
     /// @brief If you want to set the file path, you have to set this path before use log function.
     /// @param filePath
-    void Log_Tools_set_FilePath(std::string &_filePath);
+    /// @return
+    int Log_Tools_set_FilePath(std::string &_filePath);
 
 private:
     /// @brief Using Time to Update Log File Name
-    void Log_Tools_UpdateLogFile();
+    /// @return
+    int Log_Tools_UpdateLogFile(std::string &_filePath);
 
     /// @brief Thread task: Save Log into buff
     void Log_Tools_Save_Log();
