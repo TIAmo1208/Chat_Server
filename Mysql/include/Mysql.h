@@ -14,21 +14,21 @@
 /*______ I N C L U D E - F I L E S ___________________________________________*/
 
 #include <map>
-#include <vector>
+#include <sstream>
 #include <stdio.h>
 #include <string.h>
-#include <sstream>
+#include <vector>
 
 enum UserState
 {
     UserState_Unknown = 1,
-    UserState_Online = 2,
+    UserState_Online  = 2,
     UserState_Offline = 3
 };
 
 struct s_Friend_info
 {
-    std::string UserID = "";
+    std::string UserID   = "";
     std::string UserName = "";
 };
 

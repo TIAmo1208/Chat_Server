@@ -10,16 +10,20 @@
  */
 /*______ I N C L U D E - F I L E S ___________________________________________*/
 
-#include <mysql.h>
+#include "Mysql.h"
 #include <mutex>
-#include "../include/Mysql.h"
+#include <mysql.h>
+
+#include "Log.h"
+
+using namespace Log;
 
 /*______ D E F I N E _________________________________________________________*/
 
 /*______ V A R I A B L E _____________________________________________________*/
 
 static Mysql *s_mysqlSystem = nullptr; // mysql system ptr
-bool initState = false;
+bool initState              = false;
 
 MYSQL m_mysql;
 MYSQL_RES *m_mysql_res = nullptr;
@@ -40,8 +44,8 @@ int checkRepeat(std::string &_commond)
     // execute the command
     if (mysql_real_query(&m_mysql, _commond.c_str(), strlen(_commond.c_str())))
     {
-        printf("mysql:checkRepeat: select fail : %d \n", mysql_errno(&m_mysql));
-        printf("commond : %s\n", _commond.c_str());
+        Log_warn("Mysql:checkRepeat: select fail : %d", mysql_errno(&m_mysql));
+        Log_warn("Mysql:commond : %s", _commond.c_str());
         return ret = -1;
     }
 
@@ -49,7 +53,7 @@ int checkRepeat(std::string &_commond)
     m_mysql_res = mysql_store_result(&m_mysql);
     if (nullptr == m_mysql_res)
     {
-        printf("mysql:checkRepeat: store result fail : %d \n", mysql_errno(&m_mysql));
+        Log_warn("Mysql:checkRepeat: store result fail : %d", mysql_errno(&m_mysql));
         return ret = -1;
     }
 
@@ -121,14 +125,15 @@ int Mysql::Mysql_init(std::string &_hostname, std::string &_username, std::strin
     mysql_init(&m_mysql);
 
     // connect
-    mysql_real_connect(&m_mysql, _hostname.c_str(), _username.c_str(), _password.c_str(), _database.c_str(), _port, nullptr, CLIENT_FOUND_ROWS);
+    mysql_real_connect(&m_mysql, _hostname.c_str(), _username.c_str(), _password.c_str(), _database.c_str(), _port, nullptr,
+                       CLIENT_FOUND_ROWS);
     if (nullptr == &m_mysql)
     {
-        printf("mysql connect fail\n");
+        Log_error("Mysql: connect fail");
         return ret = -1;
     }
 
-    initState = true;
+    initState  = true;
     return ret = 0;
 }
 
@@ -138,12 +143,12 @@ int Mysql::Mysql_insert_user(std::string &_userID, std::string &_password, std::
 
     if (checkRepeat_UserName(_userName) > 0)
     {
-        printf("mysql:Mysql_insert_user: User name already exists\n");
+        Log_warn("Mysql:Mysql_insert_user: User name already exists");
         return ret = -2;
     }
     if (checkRepeat_UserID(_userID) > 0)
     {
-        printf("mysql:Mysql_insert_user: Account already exists\n");
+        Log_warn("Mysql:Mysql_insert_user: Account already exists");
         return ret = -3;
     }
 
@@ -152,20 +157,21 @@ int Mysql::Mysql_insert_user(std::string &_userID, std::string &_password, std::
     std::stringstream strstream;
 
     // TODO : 密码加盐
-    strstream << "INSERT INTO " << m_dataBase << ".User (user_id, user_password, user_name, salt) VALUES ('" << _userID << "', '" << _password << "', '" << _userName << "', '" << salt << "');";
+    strstream << "INSERT INTO " << m_dataBase << ".User (user_id, user_password, user_name, salt) VALUES ('" << _userID << "', '"
+              << _password << "', '" << _userName << "', '" << salt << "');";
 
     std::string commond = strstream.str();
     if (mysql_real_query(&m_mysql, commond.c_str(), strlen(commond.c_str())))
     {
-        printf("mysql:Mysql_insert_user: execute fail : %d \n", mysql_errno(&m_mysql));
-        printf("commond : %s\n", commond.c_str());
+        Log_warn("Mysql:Mysql_insert_user: execute fail : %d ", mysql_errno(&m_mysql));
+        Log_warn("Mysql:commond : %s", commond.c_str());
         return ret = -1;
     }
 
     m_mysql_res = mysql_store_result(&m_mysql);
     if (nullptr == m_mysql_res)
     {
-        printf("mysql:Mysql_insert_user: store result fail : %d \n", mysql_errno(&m_mysql));
+        Log_warn("Mysql:Mysql_insert_user: store result fail : %d ", mysql_errno(&m_mysql));
         return ret = -1;
     }
 
@@ -185,8 +191,8 @@ int Mysql::Mysql_check_user(std::string &_userID, std::string &_password, std::s
     // execute the command
     if (mysql_real_query(&m_mysql, commond.c_str(), strlen(commond.c_str())))
     {
-        printf("mysql:Mysql_check_user: select fail : %d \n", mysql_errno(&m_mysql));
-        printf("commond : %s\n", commond.c_str());
+        Log_warn("Mysql:Mysql_check_user: select fail : %d ", mysql_errno(&m_mysql));
+        Log_warn("Mysql:commond : %s", commond.c_str());
         return ret = -1;
     }
 
@@ -194,7 +200,7 @@ int Mysql::Mysql_check_user(std::string &_userID, std::string &_password, std::s
     m_mysql_res = mysql_store_result(&m_mysql);
     if (nullptr == m_mysql_res)
     {
-        printf("mysql:Mysql_check_user: store result fail : %d \n", mysql_errno(&m_mysql));
+        Log_warn("Mysql:Mysql_check_user: store result fail : %d ", mysql_errno(&m_mysql));
         return ret = -1;
     }
 
@@ -233,8 +239,8 @@ int Mysql::Mysql_Get_friendList(std::string &_userID, std::vector<s_Friend_info>
     // execute the command
     if (mysql_real_query(&m_mysql, commond.c_str(), strlen(commond.c_str())))
     {
-        printf("mysql:Mysql_Get_friendList: select fail : %d \n", mysql_errno(&m_mysql));
-        printf("commond : %s\n", commond.c_str());
+        Log_warn("Mysql:Mysql_Get_friendList: select fail : %d ", mysql_errno(&m_mysql));
+        Log_warn("Mysql:commond : %s", commond.c_str());
         return ret = -1;
     }
 
@@ -242,7 +248,7 @@ int Mysql::Mysql_Get_friendList(std::string &_userID, std::vector<s_Friend_info>
     m_mysql_res = mysql_store_result(&m_mysql);
     if (nullptr == m_mysql_res)
     {
-        printf("mysql:Mysql_Get_friendList: store result fail : %d \n", mysql_errno(&m_mysql));
+        Log_warn("Mysql:Mysql_Get_friendList: store result fail : %d ", mysql_errno(&m_mysql));
         return ret = -1;
     }
 
@@ -261,7 +267,7 @@ int Mysql::Mysql_Get_friendList(std::string &_userID, std::vector<s_Friend_info>
         }
         ret++;
     }
-    if (ret = 0)
+    if (ret == 0)
     {
         return ret = -2;
     }
@@ -276,7 +282,7 @@ int Mysql::Mysql_Set_userState(std::string &_userID, UserState _state)
 
     if (checkRepeat_UserID(_userID) <= 0)
     {
-        printf("mysql:Mysql_Set_userState: userID no exists\n");
+        Log_warn("Mysql:Mysql_Set_userState: userID no exists");
         return ret = -2;
     }
 
@@ -286,15 +292,15 @@ int Mysql::Mysql_Set_userState(std::string &_userID, UserState _state)
     std::string commond = strstream.str();
     if (mysql_real_query(&m_mysql, commond.c_str(), strlen(commond.c_str())))
     {
-        printf("mysql:Mysql_Set_userState: execute fail : %d \n", mysql_errno(&m_mysql));
-        printf("commond : %s\n", commond.c_str());
+        Log_warn("Mysql:Mysql_Set_userState: execute fail : %d ", mysql_errno(&m_mysql));
+        Log_warn("Mysql:commond : %s", commond.c_str());
         return ret = -1;
     }
 
     m_mysql_res = mysql_store_result(&m_mysql);
     if (nullptr == m_mysql_res)
     {
-        printf("mysql:Mysql_Set_userState: store result fail : %d \n", mysql_errno(&m_mysql));
+        Log_warn("Mysql:Mysql_Set_userState: store result fail : %d ", mysql_errno(&m_mysql));
         return ret = -1;
     }
 
@@ -302,9 +308,7 @@ int Mysql::Mysql_Set_userState(std::string &_userID, UserState _state)
     return ret = 0;
 }
 
-Mysql::Mysql(/* args */)
-{
-}
+Mysql::Mysql(/* args */) {}
 
 Mysql::~Mysql()
 {
