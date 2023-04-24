@@ -15,10 +15,10 @@ using namespace Log;
 
 /*______ D E F I N E _________________________________________________________*/
 
-const char CODE_CONNECT_SERVER[] = "0000"; // 客户端登录
-const char CODE_CONNECT_CLIENT[] = "0001"; // 连接其他客户端
-const char CODE_SEND_MESSAGE[]   = "0002"; // 客户端发送信息
-const char CODE_SEND_FILE[]      = "0003"; // 客户端发送文件
+#define CODE_CONNECT_SERVER 0000 // 客户端登录
+#define CODE_CONNECT_CLIENT 0001 // 连接其他客户端
+#define CODE_SEND_MESSAGE 0002   // 客户端发送信息
+#define CODE_SEND_FILE 0003      // 客户端发送文件
 
 // 登录成功返回用户名
 #define CODE_LOGIN_RETURN "1000"
@@ -53,7 +53,12 @@ Server_impl::Server_impl(/* args */)
     this->m_port     = SOCKET_CONFIG_PORT;     // port
 }
 
-Server_impl::~Server_impl() { this->m_threadPool->ThreadPool_join(); }
+Server_impl::~Server_impl()
+{
+    m_TerminateFlag = true;
+    this->m_condition_task.notify_all();
+    this->m_threadPool->ThreadPool_join();
+}
 
 int Server_impl::Server_Init(int port, int threadNum)
 {
@@ -238,7 +243,8 @@ void Server_impl::Server_Receive_Event(fd_set _readfds)
         temp_count++;
 
         // Get the message type
-        std::string code = str_recvBuff.substr(0, CODE_LENGHT);
+        str_subTemp = str_recvBuff.substr(0, CODE_LENGHT);
+        int code    = m_tools.Server_Tools_convert_Char_to_int(str_subTemp);
 
         // get 4bit high code
         str_subTemp = str_recvBuff.substr(CODE_POSITION_HIGHT, CODE_LENGHT);
@@ -252,9 +258,7 @@ void Server_impl::Server_Receive_Event(fd_set _readfds)
         str_message = str_recvBuff.substr(12, str_recvBuff.length() - 12);
 
         // add task
-        Log_debug("Server_Receive_Event: code:%s, 4bit high:%d, 4bit low:%d, "
-                  "str_message:%s",
-                  code.c_str(), high, low, str_message.c_str());
+        Log_debug("Server_Receive_Event: code:%d, 4bit high:%d, 4bit low:%d, str_message:%s", code, high, low, str_message.c_str());
         s_event_task task = s_event_task{this->m_fd_array[i], code, high, low, str_message};
         //
         this->m_queue_task.push(task);
@@ -389,8 +393,8 @@ void Server_impl::Server_Thread_Task()
             Log_warn("Server_Thread_Task: task is null");
             continue;
         }
-        Log_debug("Server_Thread_Task: socket:%d, code:%s, bits_high:%d, bits_low:%d, recvBuff:%s", task.socket, task.code.c_str(),
-                  task.bits_high, task.bits_low, task.recvBuff.c_str());
+        Log_debug("Server_Thread_Task: socket:%d, code:%d, bits_high:%d, bits_low:%d, recvBuff:%s", task.socket, task.code, task.bits_high,
+                  task.bits_low, task.recvBuff.c_str());
 
         // get user
         std::string user_id;
@@ -436,11 +440,11 @@ void Server_impl::Server_Process_ConnectServer(std::string _userid, s_event_task
 {
     Log_debug("Server_Process_ConnectServer: CODE_CONNECT_SERVER");
 
-    std::string recv_userID = _task.recvBuff.substr(0, _task.bits_high);
-    std::string userName, recv_password;
+    std::string recv_userID, userName, recv_password;
     int ret = -1;
 
     // 验证数据库
+    recv_userID   = _task.recvBuff.substr(0, _task.bits_high);
     recv_password = _task.recvBuff.substr(_task.bits_high, _task.bits_low);
     ret           = Mysql::instance()->Mysql_check_user(recv_userID, recv_password, userName);
     // 获取结果
@@ -481,7 +485,6 @@ void Server_impl::Server_Process_ConnectServer(std::string _userid, s_event_task
     Mysql::instance()->Mysql_Set_userState(_userid, UserState::UserState_Online);
 
     // 添加任务：获取返回好友列表
-
     this->m_threadPool->ThreadPool_add_Task(&Server_impl::Server_Process_ReturnFriendList, this, _userid, _task, userName);
 }
 

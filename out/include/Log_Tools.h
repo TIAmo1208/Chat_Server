@@ -30,6 +30,8 @@ const constexpr int LOG_TXT_OUTPUT_THRESHOLD = LOG_BUFF_MAX_SIZE * 0.9;
 const constexpr int LOG_TXT_MAX_SIZE = 2048;
 const constexpr int TIME_DATA_SIZE   = 10;
 
+#define COMMOND_SUCCESS 0
+
 /*______ C L A S S ___________________________________________________________*/
 namespace Log
 {

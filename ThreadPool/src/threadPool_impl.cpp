@@ -48,7 +48,7 @@ private:
     std::mutex m_mutex_queue;                        // the mutex for task queue
     std::queue<std::function<void()>> m_queue_tasks; // the task queue
 };
-Mutex_Queue m_mutex_queue;
+Mutex_Queue m_queue;
 
 // need to keep track of threads so we can join them
 std::vector<std::thread> m_list_threads;
@@ -65,7 +65,7 @@ std::condition_variable m_condition;
 // the stop flag
 bool m_stop = false;
 
-/*______ F U N C T I O N _____________________________________________________*/
+/*______ L O C A L - F U N C T I O N _________________________________________*/
 
 void workthread()
 {
@@ -82,21 +82,21 @@ void workthread()
         }
 
         // exit when the stop is true and no task
-        if (m_stop && m_mutex_queue.Mutex_Queue_empty())
+        if (m_stop)
             return;
 
         Log_debug("ThreadPool_impl: do work");
 
         // start task
-        std::function<void()> task = std::move(m_mutex_queue.Mutex_Queue_front());
+        std::function<void()> task = std::move(m_queue.Mutex_Queue_front());
         task();
     }
 }
 
+/*______ F U N C T I O N _____________________________________________________*/
+
 ThreadPool_impl::ThreadPool_impl(int threads)
 {
-    LogSystem::instance()->instance();
-
     m_stop       = false;
     m_num_thread = threads;
 
@@ -110,12 +110,12 @@ ThreadPool_impl::ThreadPool_impl(int threads)
 
 ThreadPool_impl::~ThreadPool_impl()
 {
-    this->join();
-
-    while (!m_mutex_queue.Mutex_Queue_empty())
+    while (!m_queue.Mutex_Queue_empty())
     {
-        m_mutex_queue.Mutex_Queue_pop();
+        m_queue.Mutex_Queue_pop();
     }
+
+    this->join();
 }
 
 void ThreadPool_impl::add_Task(std::function<void()> &_task)
@@ -129,7 +129,7 @@ void ThreadPool_impl::add_Task(std::function<void()> &_task)
     }
 
     // add task to task list
-    m_mutex_queue.Mutex_Queue_emplace([task]() { (*task)(); });
+    m_queue.Mutex_Queue_emplace([task]() { (*task)(); });
     Log_debug("ThreadPool_impl: add_Task: add new task into task list");
 
     // Notice one thread of thread pool
@@ -141,20 +141,13 @@ void ThreadPool_impl::join()
     if (m_list_threads.empty())
         return;
 
-    // wait for all the task done
-    while (!m_stop)
-    {
-        {
-            if (m_mutex_queue.Mutex_Queue_empty())
-            {
-                break;
-            }
-        }
-
-        std::this_thread::sleep_for(std::chrono::microseconds(3));
-    }
-
     m_stop = true;
+
+    // wait for all the task done
+    while (!m_queue.Mutex_Queue_empty())
+    {
+        m_queue.Mutex_Queue_pop();
+    }
 
     // notify all thread, and end it
     m_condition.notify_all();
