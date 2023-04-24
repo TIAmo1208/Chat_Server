@@ -99,6 +99,11 @@ void Log_Tools::Log_Tools_set_LogOutput_Time(int _seconds) { m_output_time = _se
 
 int Log_Tools::Log_Tools_set_FilePath(std::string &_filePath)
 {
+    if (!m_output)
+    {
+        return -1;
+    }
+
     if (Log_Tools_UpdateLogFile(_filePath) >= 0)
     {
         m_logFilePath = _filePath;
@@ -112,21 +117,16 @@ int Log_Tools::Log_Tools_set_FilePath(std::string &_filePath)
 int Log_Tools::Log_Tools_UpdateLogFile(std::string &_filePath)
 {
     //
-    std::string tempPath = m_logFilePath;
-    if (_filePath == m_logFilePath)
-    {
-        tempPath = _filePath;
-    }
+    std::string tempPath = _filePath;
 
     // Created when no folder exists
     if (F_OK != access(tempPath.c_str(), 0))
     {
         std::string temp = "mkdir " + tempPath;
-        int ret          = system(temp.c_str());
-    }
-    else
-    {
-        return -1;
+        if (COMMOND_SUCCESS != system(temp.c_str()))
+        {
+            return -1;
+        }
     }
 
     // get log file's name
@@ -191,18 +191,15 @@ void Log_Tools::Log_Tools_Save_Log()
         // Update file path
         Log_Tools_UpdateLogFile(m_logFilePath);
 
+        // write into file
+        std::unique_lock<std::mutex> lock_buff(m_mutex_LogBuff);
         if (m_WriteStream.is_open())
         {
-            // write into file
-            std::unique_lock<std::mutex> lock_buff(m_mutex_LogBuff);
-            if (m_WriteStream.is_open())
-            {
-                m_WriteStream << std::move(m_logBuff) << std::endl;
+            m_WriteStream << std::move(m_logBuff) << std::endl;
 
-                memset(m_logBuff, 0, m_logLength);
-                m_logLength = 0;
-                m_buff_fill = false;
-            }
+            memset(m_logBuff, 0, m_logLength);
+            m_logLength = 0;
+            m_buff_fill = false;
         }
     }
 }
