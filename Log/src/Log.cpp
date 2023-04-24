@@ -11,12 +11,14 @@
 
 /*______ I N C L U D E - F I L E S ___________________________________________*/
 
-#include "Log.h"
 #include <cstring>
 #include <mutex>
 #include <stdarg.h> // parameter list
 #include <unistd.h>
 
+#include <csignal> // 信号
+
+#include "Log.h"
 #include "Log_Tools.h"
 
 using namespace Log;
@@ -29,11 +31,11 @@ using namespace Log;
 #define LOG_LEVEL_INFO (3)
 #define LOG_LEVEL_DEBUG (4)
 
-#define TYPE_LOG_DEBUG "LOG_DEBUG"
-#define TYPE_LOG_INFO "LOG_INFO"
-#define TYPE_LOG_ERROR "LOG_ERROR"
-#define TYPE_LOG_WARN "LOG_WARN"
-#define TYPE_LOG_FATAL "LOG_FATAL"
+#define TYPE_LOG_DEBUG "DEBUG"
+#define TYPE_LOG_INFO "INFO"
+#define TYPE_LOG_ERROR "ERROR"
+#define TYPE_LOG_WARN "WARN"
+#define TYPE_LOG_FATAL "FATAL"
 
 /*______ V A R I A B L E _____________________________________________________*/
 
@@ -53,17 +55,30 @@ int m_log_level = LOG_LEVEL_INFO;
 
 int m_outputTime = 10;
 
+/*______ L O C A L - F U N C T I O N _________________________________________*/
+
+void signalHandler(int signum)
+{
+    Log_info("LogSystem: Get signal: SIGINT, signum:%d\n", signum);
+
+    if (m_logSystem != nullptr)
+    {
+        delete m_logSystem;
+    }
+
+    exit(signum);
+}
+
 /*______ F U N C T I O N _____________________________________________________*/
 
 /// @brief default constructor
-LogSystem::LogSystem() {}
+LogSystem::LogSystem() { signal(SIGINT, signalHandler); }
 
 /// @brief destructor
 LogSystem::~LogSystem()
 {
-    printf("\nyou can see the Log file in the %s\n", m_filePath.c_str());
-
     delete m_logTools;
+    printf("\nyou can see the Log file in the %s\n", m_filePath.c_str());
 }
 
 /// @brief init and return ptr of the log system
@@ -111,11 +126,9 @@ void LogSystem::Log_init(int _log_level, bool _log_file_enable, std::string _fil
     m_outputFile = _log_file_enable;
     m_filePath   = _filePath;
 
-    if (m_outputFile)
-    {
-        m_logTools = new Log_Tools();
-        m_logTools->Log_Tools_Init(m_outputFile, _filePath);
-    }
+    m_logTools = new Log_Tools();
+    m_logTools->Log_Tools_Init(m_outputFile, _filePath);
+    log_info("Log: Init done, log level:%d, file path:%s, output:%s, ", m_log_level, m_filePath.c_str(), m_outputFile ? "true" : "false");
 
     m_initState = true;
 }

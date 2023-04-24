@@ -16,6 +16,8 @@
 #include "Server_config.h"
 #include "config.h"
 
+#include <csignal> // 信号
+
 #include "Server_Interface.hpp"
 #include "Server_impl.hpp"
 #include <chrono>
@@ -23,8 +25,36 @@
 
 using namespace Log;
 
+/*______ V A R I A B L E _____________________________________________________*/
+
+// socket
+std::shared_ptr<Server_Interface> m_server;
+
+/*______ L O C A L - F U N C T I O N _________________________________________*/
+
+void signalHandler(int signum)
+{
+    Log_info("Server: Get signal: SIGINT, signum:%d\n", signum);
+
+    // server
+    if (m_server != nullptr)
+    {
+        m_server.reset();
+    }
+
+    //
+    LogSystem::instance()->del_object();
+    Mysql::instance()->del_object();
+
+    exit(signum);
+}
+
+/*______ F U N C T I O N _____________________________________________________*/
+
 int main(const int _argc, char *const _argv[])
 {
+    signal(SIGINT, signalHandler);
+
     // config
     CONFIG::Config cfg(_argc, _argv);
 
@@ -51,21 +81,21 @@ int main(const int _argc, char *const _argv[])
     Mysql::instance()->Mysql_init(host, name, password, database, 3306);
 
     // socket
-    std::shared_ptr<Server_Interface> server = std::make_shared<Server_impl>();
+    m_server = std::make_shared<Server_impl>();
 
-    int ret = server->Server_Init(8888, threads);
+    int ret = m_server->Server_Init(8888, threads);
     if (SOCKET_ERROR == ret)
     {
         do
         {
             std::this_thread::sleep_for(std::chrono::seconds(3));
-            ret = server->Server_Init(8888, threads);
+            ret = m_server->Server_Init(8888, threads);
         } while (SOCKET_SUCCESS == ret);
     }
 
     while (1)
     {
-        server->Server_Update();
+        m_server->Server_Update();
     }
 
     //

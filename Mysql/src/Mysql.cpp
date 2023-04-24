@@ -14,6 +14,8 @@
 #include <mutex>
 #include <mysql.h>
 
+#include <csignal> // 信号
+
 #include "Log.h"
 
 using namespace Log;
@@ -93,6 +95,18 @@ int checkRepeat_UserName(std::string &_userName)
 
     std::string commond = strstream.str();
     return checkRepeat(commond);
+}
+
+void signalHandler(int signum)
+{
+    Log_info("Mysql: Get signal: SIGINT, signum:%d\n", signum);
+
+    if (s_mysqlSystem != nullptr)
+    {
+        delete s_mysqlSystem;
+    }
+
+    exit(signum);
 }
 
 /*______ F U N C T I O N _____________________________________________________*/
@@ -308,7 +322,7 @@ int Mysql::Mysql_Set_userState(std::string &_userID, UserState _state)
     return ret = 0;
 }
 
-Mysql::Mysql(/* args */) {}
+Mysql::Mysql(/* args */) { signal(SIGINT, signalHandler); }
 
 Mysql::~Mysql()
 {
