@@ -1,116 +1,121 @@
 /**
  * @file config.h
  * @author TIAmo (s13144281208@outlook.com)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2023-02-11
- * 
+ *
  * @copyright Copyright (c) 2023
- * 
+ *
  */
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
 /*______ I N C L U D E - F I L E S ___________________________________________*/
 
-#include <unistd.h>
-#include <fstream>
-#include <unistd.h>
-#include <map>
-#include <cstring>
+#include <string>
+
+/*______ D E F I N E _________________________________________________________*/
+
+typedef void (*Function_CommonHandle)(char *);
 
 /*______ F U N C T I O N _____________________________________________________*/
 
 namespace CONFIG
 {
-    class Config
-    {
-    public:
-        /// @brief Get Value by Node and Value name
-        /// @param _NodeName
-        /// @param _ValueName
-        /// @param _value return value
-        /// @return Processing result
-        int Config_GetValue(const char *_NodeName, const char *_ValueName, int &_value);
-        int Config_GetValue(const char *_NodeName, const char *_ValueName, float &_value);
-        int Config_GetValue(const char *_NodeName, const char *_ValueName, std::string &_value);
-        int Config_GetValue(const char *_NodeName, const char *_ValueName, bool &_value);
+class Config
+{
+public:
+    /// @brief Get Value by Node and Value name
+    /// @param _NodeName
+    /// @param _ValueName
+    /// @param _value return value
+    /// @return Processing result
+    int Config_GetValue(const char *_NodeName, const char *_ValueName, int &_value);
+    int Config_GetValue(const char *_NodeName, const char *_ValueName, float &_value);
+    int Config_GetValue(const char *_NodeName, const char *_ValueName, std::string &_value);
+    int Config_GetValue(const char *_NodeName, const char *_ValueName, bool &_value);
 
-    public:
-        Config(const int _argc, char *const _argv[]);
-        ~Config();
+    /// @brief regist commond handle
+    /// @param _func Command handle funciton
+    void Config_Regist_Commond_handle(Function_CommonHandle _func);
 
-    private:
-        /// @brief Parse Command
-        /// @param _argc Command
-        /// @param _argv Parameter list
-        /// @return Processing result
-        int Config_parseCommand(const int _argc, char *const _argv[]);
+public:
+    Config(const int _argc, char *const _argv[]);
+    ~Config();
 
-        /// @brief get config
-        /// @return Processing result
-        int Config_getConfig();
+private:
+    /// @brief Parse Command
+    /// @param _argc Command
+    /// @param _argv Parameter list
+    /// @return Processing result
+    int Config_parseCommand(const int _argc, char *const _argv[]);
 
-        /// @brief
-        /// @param _configFilePath
-        /// @return Processing result
-        int Config_readFile(std::string _configFilePath);
-    };
+    /// @brief get config
+    /// @return Processing result
+    int Config_getConfig();
 
-    union un_value
-    {
-        bool value_bool;
-        int value_int;
-        float value_float;
-        char value_str[1024];
-    };
+    /// @brief
+    /// @param _configFilePath
+    /// @return Processing result
+    int Config_readFile(std::string _configFilePath);
 
-    class ConfigList
-    {
-    public:
-        /// @brief Get the node value by Node name
-        /// @param _NodeName
-        /// @param _ValueName
-        /// @param _value
-        /// @return
-        int ConfigList_getValue(const char *_NodeName, const char *_ValueName, int &_value);
-        int ConfigList_getValue(const char *_NodeName, const char *_ValueName, float &_value);
-        int ConfigList_getValue(const char *_NodeName, const char *_ValueName, std::string &_value);
-        int ConfigList_getValue(const char *_NodeName, const char *_ValueName, bool &_value);
+};
 
-        /// @brief Set the node and value
-        /// @param _NodeName    The
-        /// @param _ValueName
-        /// @param _value
-        /// @return
-        int ConfigList_setValue(const char *_NodeName, const char *_ValueName, int _value);
-        int ConfigList_setValue(const char *_NodeName, const char *_ValueName, float _value);
-        int ConfigList_setValue(const char *_NodeName, const char *_ValueName, std::string _value);
-        int ConfigList_setValue(const char *_NodeName, const char *_ValueName, bool _value);
+union un_value
+{
+    bool value_bool;
+    int value_int;
+    float value_float;
+    char value_str[1024];
+};
 
-        /// @brief Creat New Node
-        /// @param _NodeName
-        /// @return
-        int ConfigList_CreatNode(const char *_NodeName);
+class ConfigList
+{
+public:
+    /// @brief Get the node value by Node name
+    /// @param _NodeName
+    /// @param _ValueName
+    /// @param _value
+    /// @return
+    int ConfigList_getValue(const char *_NodeName, const char *_ValueName, int &_value);
+    int ConfigList_getValue(const char *_NodeName, const char *_ValueName, float &_value);
+    int ConfigList_getValue(const char *_NodeName, const char *_ValueName, std::string &_value);
+    int ConfigList_getValue(const char *_NodeName, const char *_ValueName, bool &_value);
 
-        ConfigList() {}
-        ~ConfigList() {}
+    /// @brief Set the node and value
+    /// @param _NodeName    The
+    /// @param _ValueName
+    /// @param _value
+    /// @return
+    int ConfigList_setValue(const char *_NodeName, const char *_ValueName, int _value);
+    int ConfigList_setValue(const char *_NodeName, const char *_ValueName, float _value);
+    int ConfigList_setValue(const char *_NodeName, const char *_ValueName, std::string _value);
+    int ConfigList_setValue(const char *_NodeName, const char *_ValueName, bool _value);
 
-    private:
-        /// @brief Set the value to the Node list
-        /// @param _NodeName
-        /// @param _ValueName
-        /// @param _value
-        /// @return
-        int ConfigList_setValue(const char *_NodeName, const char *_ValueName, un_value &_value);
+    /// @brief Creat New Node
+    /// @param _NodeName
+    /// @return
+    int ConfigList_CreatNode(const char *_NodeName);
 
-        /// @brief Get the value from the Node list
-        /// @param _NodeName
-        /// @param _ValueName
-        /// @param _value
-        /// @return
-        int ConfigList_getValue(const char *_NodeName, const char *_ValueName, un_value &_value);
-    };
-}
+    ConfigList() {}
+    ~ConfigList() {}
+
+private:
+    /// @brief Set the value to the Node list
+    /// @param _NodeName
+    /// @param _ValueName
+    /// @param _value
+    /// @return
+    int ConfigList_setValue(const char *_NodeName, const char *_ValueName, un_value &_value);
+
+    /// @brief Get the value from the Node list
+    /// @param _NodeName
+    /// @param _ValueName
+    /// @param _value
+    /// @return
+    int ConfigList_getValue(const char *_NodeName, const char *_ValueName, un_value &_value);
+};
+} // namespace CONFIG
 
 #endif // __CONFIG_H__

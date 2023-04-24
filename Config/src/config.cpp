@@ -13,6 +13,16 @@
 
 #include "config.h"
 
+#include <cstring>
+#include <fstream>
+#include <map>
+#include <unistd.h>
+
+#include <thread>
+
+#include <fcntl.h>
+#include <sys/stat.h>
+
 using namespace CONFIG;
 
 /*______ D E F I N E _________________________________________________________*/
@@ -26,9 +36,13 @@ using namespace CONFIG;
 #define Node_Type_String 2
 #define Node_Type_Bool 3
 
+const char COMMOND_PATH[] = "./Commond";
+#define COMMOND_MAX_SIZE 8
+
 /*______ V A R I A B L E _____________________________________________________*/
 
 bool m_fileOpenState = false;
+bool m_stop          = false;
 
 std::string m_configFilePath = "./config.cfg";
 std::ifstream m_fs_input; // config file input file stream
@@ -37,6 +51,73 @@ ConfigList *m_config_list;
 
 std::map<std::string, std::map<std::string, un_value>> m_Nodelist;
 
+Function_CommonHandle m_Handle_Function = nullptr;
+
+std::thread m_thread_GetCommond;
+
+/*______ L O C A L - F U N C T I O N _________________________________________*/
+
+void getCommond()
+{
+    {
+        char *path = new char[1024];
+        sprintf(path, "touch %s", COMMOND_PATH);
+        system(path);
+        delete[] path;
+    }
+
+    int fd = open(COMMOND_PATH, O_RDWR);
+
+    // 获取文件状态
+    struct stat fileState;
+    fstat(fd, &fileState);
+    off_t fileSize = fileState.st_size;
+    char buffer[COMMOND_MAX_SIZE];
+
+    while (!m_stop)
+    {
+        // 读取大小为空
+        while (fileSize == 0)
+        {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            fstat(fd, &fileState);
+            fileSize = fileState.st_size;
+
+            if (m_stop)
+            {
+                break;
+            }
+        }
+
+        if (m_stop)
+        {
+            break;
+        }
+
+        // 读取文件内容
+        int len = read(fd, buffer, fileSize);
+        if (len == -1)
+        {
+            printf("读取错误\n");
+        }
+
+        // 判断代码类型
+        if (m_Handle_Function != nullptr)
+        {
+            (*m_Handle_Function)(buffer);
+        }
+
+        if (fcntl(fd, F_GETFD) < 0)
+        {
+            printf("获取文件描述符状态失败\n");
+        }
+        // 截断文件大小
+        ftruncate(fd, 0);
+        fileSize = 0;
+    }
+
+    close(fd);
+}
 /*______ F U N C T I O N _____________________________________________________*/
 
 Config::Config(const int _argc, char *const _argv[])
@@ -57,12 +138,17 @@ Config::Config(const int _argc, char *const _argv[])
     {
         printf("%s \n", e.what());
     }
+
+    m_thread_GetCommond = std::thread(getCommond);
 }
 
 Config::~Config()
 {
     if (m_config_list != nullptr)
         delete m_config_list;
+
+    m_stop = true;
+    m_thread_GetCommond.join();
 }
 
 int Config::Config_parseCommand(const int _argc, char *const _argv[])
@@ -307,13 +393,15 @@ int Config::Config_GetValue(const char *_NodeName, const char *_ValueName, bool 
     return retval = 0;
 }
 
+void Config::Config_Regist_Commond_handle(Function_CommonHandle _func) { m_Handle_Function = _func; }
+
 /*______ F U N C T I O N _____________________________________________________*/
 
 int ConfigList::ConfigList_getValue(const char *_NodeName, const char *_ValueName, int &_value)
 {
     int retval = -1;
 
-    if (_NodeName == "" || _ValueName == "")
+    if (strlen(_NodeName) == 0 || strlen(_ValueName) == 0)
     {
         printf("Config : The NodeName/ValueName is NULL \n");
         return retval;
@@ -336,7 +424,7 @@ int ConfigList::ConfigList_getValue(const char *_NodeName, const char *_ValueNam
 {
     int retval = -1;
 
-    if (_NodeName == "" || _ValueName == "")
+    if (strlen(_NodeName) == 0 || strlen(_ValueName) == 0)
     {
         printf("Config : The NodeName/ValueName is NULL \n");
         return retval;
@@ -359,7 +447,7 @@ int ConfigList::ConfigList_getValue(const char *_NodeName, const char *_ValueNam
 {
     int retval = -1;
 
-    if (_NodeName == "" || _ValueName == "")
+    if (strlen(_NodeName) == 0 || strlen(_ValueName) == 0)
     {
         printf("Config : The NodeName/ValueName is NULL \n");
         return retval;
@@ -382,7 +470,7 @@ int ConfigList::ConfigList_getValue(const char *_NodeName, const char *_ValueNam
 {
     int retval = -1;
 
-    if (_NodeName == "" || _ValueName == "")
+    if (strlen(_NodeName) == 0 || strlen(_ValueName) == 0)
     {
         printf("Config : The NodeName/ValueName is NULL \n");
         return retval;
@@ -406,7 +494,7 @@ int ConfigList::ConfigList_setValue(const char *_NodeName, const char *_ValueNam
 {
     int retval = -1;
 
-    if (_NodeName == "" || _ValueName == "")
+    if (strlen(_NodeName) == 0 || strlen(_ValueName) == 0)
     {
         printf("Config : The NodeName/ValueName is NULL \n");
         return retval;
@@ -423,7 +511,7 @@ int ConfigList::ConfigList_setValue(const char *_NodeName, const char *_ValueNam
 {
     int retval = -1;
 
-    if (_NodeName == "" || _ValueName == "")
+    if (strlen(_NodeName) == 0 || strlen(_ValueName) == 0)
     {
         printf("Config : The NodeName/ValueName is NULL \n");
         return retval;
@@ -440,7 +528,7 @@ int ConfigList::ConfigList_setValue(const char *_NodeName, const char *_ValueNam
 {
     int retval = -1;
 
-    if (_NodeName == "" || _ValueName == "")
+    if (strlen(_NodeName) == 0 || strlen(_ValueName) == 0)
     {
         printf("Config : The NodeName/ValueName is NULL \n");
         return retval;
@@ -457,7 +545,7 @@ int ConfigList::ConfigList_setValue(const char *_NodeName, const char *_ValueNam
 {
     int retval = -1;
 
-    if (_NodeName == "" || _ValueName == "")
+    if (strlen(_NodeName) == 0 || strlen(_ValueName) == 0)
     {
         printf("Config : The NodeName/ValueName is NULL \n");
         return retval;

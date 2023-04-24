@@ -8,8 +8,8 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 endif()
 
 include_directories(
-    ../out/include
     ./include
+    ../out/include
 )
 
 file(GLOB SOURCES "./src/*.cpp")
@@ -17,11 +17,16 @@ file(GLOB HEADERS "./include/*.h" "./include/*.hpp")
 
 link_directories(../out/lib/)
 
-# # add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
+# 
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
+
+# 
+# add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 
 # # Copy header files to INSTALL path
 install(FILES ${HEADERS} DESTINATION include)
 
 # # Copy library file to INSTALL path
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
+
+target_link_libraries(${PROJECT_NAME} pthread)
