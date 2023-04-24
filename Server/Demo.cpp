@@ -21,14 +21,22 @@
 #include "Server_Interface.hpp"
 #include "Server_impl.hpp"
 #include <chrono>
+#include <memory>
 #include <thread>
 
 using namespace Log;
+
+/*______ D E F I N E _________________________________________________________*/
+
+#define COMMOND_1 "1"
 
 /*______ V A R I A B L E _____________________________________________________*/
 
 // socket
 std::shared_ptr<Server_Interface> m_server;
+
+// config
+std::shared_ptr<CONFIG::Config> m_config;
 
 /*______ L O C A L - F U N C T I O N _________________________________________*/
 
@@ -41,6 +49,11 @@ void signalHandler(int signum)
     {
         m_server.reset();
     }
+    // config
+    if (m_config != nullptr)
+    {
+        m_config.reset();
+    }
 
     //
     LogSystem::instance()->del_object();
@@ -49,14 +62,23 @@ void signalHandler(int signum)
     exit(signum);
 }
 
+void Commond_handle(char *_commond)
+{
+    if (memcmp(_commond, COMMOND_1, 1) == 0)
+    {
+        printf("COMMOND_TEST : 1\n");
+    }
+    else
+    {
+        printf("NO COMMOND\n");
+    }
+}
+
 /*______ F U N C T I O N _____________________________________________________*/
 
 int main(const int _argc, char *const _argv[])
 {
     signal(SIGINT, signalHandler);
-
-    // config
-    CONFIG::Config cfg(_argc, _argv);
 
     int log_level             = 3;
     bool log_file_enable      = true;
@@ -64,11 +86,15 @@ int main(const int _argc, char *const _argv[])
     int server_port           = 8000;
     int threads               = 5;
 
-    cfg.Config_GetValue(CONFIG_MODULE_LOG, CONFIG_LOG_LogLevel, log_level);
-    cfg.Config_GetValue(CONFIG_MODULE_LOG, CONFIG_LOG_LogFileEnable, log_file_enable);
-    cfg.Config_GetValue(CONFIG_MODULE_LOG, CONFIG_LOG_FilePath, log_file_path);
-    cfg.Config_GetValue(CONFIG_MODULE_SERVER, CONFIG_SERVER_Server_Port, server_port);
-    cfg.Config_GetValue(CONFIG_MODULE_THREAD_POOL, CONFIG_THREAD_POOL_THREAD_NUM, threads);
+    m_config = std::make_shared<CONFIG::Config>(_argc, _argv);
+
+    m_config->Config_GetValue(CONFIG_MODULE_LOG, CONFIG_LOG_LogLevel, log_level);
+    m_config->Config_GetValue(CONFIG_MODULE_LOG, CONFIG_LOG_LogFileEnable, log_file_enable);
+    m_config->Config_GetValue(CONFIG_MODULE_LOG, CONFIG_LOG_FilePath, log_file_path);
+    m_config->Config_GetValue(CONFIG_MODULE_SERVER, CONFIG_SERVER_Server_Port, server_port);
+    m_config->Config_GetValue(CONFIG_MODULE_THREAD_POOL, CONFIG_THREAD_POOL_THREAD_NUM, threads);
+
+    m_config->Config_Regist_Commond_handle(Commond_handle);
 
     // log
     LogSystem::instance()->Log_init(log_level, log_file_enable, log_file_path);
