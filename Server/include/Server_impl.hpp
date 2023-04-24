@@ -51,10 +51,10 @@ struct s_user_Information
 // task
 struct s_event_task
 {
-    int socket       = -1;
-    std::string code = "";
-    int bits_high    = 0;
-    int bits_low     = 0;
+    int socket    = -1;
+    int code      = -1;
+    int bits_high = -1;
+    int bits_low  = -1;
 
     std::string recvBuff = "";
 };
