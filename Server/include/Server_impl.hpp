@@ -10,8 +10,6 @@
 #ifdef __linux__
 #include <arpa/inet.h>
 #include <fcntl.h> // set no blocking
-#include <netinet/in.h>
-#include <sys/socket.h>
 #include <unistd.h>
 // #include <sys/select.h>
 #endif
@@ -20,44 +18,9 @@
 
 #include <condition_variable>
 #include <map>
-#include <memory>
 #include <mutex>
 #include <queue>
 #include <string>
-
-/*______ S T R U C T _________________________________________________________*/
-
-// client list
-struct s_socket_client
-{
-    std::string UserID; // client's ID
-
-    int Socket; // client`s socket
-    char IP[INET_ADDRSTRLEN];
-    int Port;
-    sockaddr_in Socket_Addr; // client`s addr
-};
-
-// users
-struct s_user_Information
-{
-    int Socket = -1;
-
-    std::string UserID         = "";
-    std::string UserName       = "";
-    std::string Connect_UserID = "";
-};
-
-// task
-struct s_event_task
-{
-    int socket    = -1;
-    int code      = -1;
-    int bits_high = -1;
-    int bits_low  = -1;
-
-    std::string recvBuff = "";
-};
 
 /*______ C L A S S ___________________________________________________________*/
 
@@ -92,12 +55,12 @@ public:
     virtual void Server_Reg_recvMsgCallbackFunc(recvMsg_CallbackFunc _callback) override;
 
 private:
+
     /**
-     * @brief Receive client message
+     * @brief Data processing thread
      *
-     * @param _readfds
      */
-    void Server_Receive_Event(fd_set _readfds);
+    void Server_Task_Processing();
 
     /**
      * @brief Accept client connection
@@ -113,43 +76,52 @@ private:
     void Server_Disconnect_Client(int _index);
 
     /**
-     * @brief Data processing thread
+     * @brief Receive client message
      *
+     * @param _readfds
      */
-    void Server_Thread_Task();
+    void Server_Receive_Event(fd_set _readfds);
 
     /**
      * @brief Handles the task of connect server
      *
-     * @param _userid
+     * @param _sendUserID
      * @param _task
      */
-    void Server_Process_ConnectServer(std::string _userid, s_event_task _task);
+    void Server_Process_ConnectServer(std::string _sendUserID, EventTask _task);
 
     /**
      * @brief Handles the task of connect other client
      *
-     * @param _userid
+     * @param _sendUserID
      * @param _task
      */
-    void Server_Process_ConnectClient(std::string _userid, s_event_task _task);
+    void Server_Process_ConnectClient(std::string _sendUserID, EventTask _task);
 
     /**
      * @brief Handles the task of client send message to other client
      *
-     * @param _userid
+     * @param _sendUserID
      * @param _task
      */
-    void Server_Process_SendMessage(std::string _userid, s_event_task _task);
+    void Server_Process_SendMessage(std::string _sendUserID, EventTask _task);
+
+    /**
+     * @brief Handles the task of client send file to other client
+     *
+     * @param _sendUserID
+     * @param _task
+     */
+    void Server_Process_SendFile(std::string _sendUserID, EventTask _task);
 
     /**
      * @brief
      *
-     * @param _userid
+     * @param _sendUserID
      * @param _task
      * @param _userName
      */
-    void Server_Process_ReturnFriendList(std::string _userid, s_event_task _task, std::string _userName);
+    void Server_Process_ReturnFriendList(std::string _sendUserID, EventTask _task, std::string _userName);
 
 private:
     /*______ V A R I A B L E _________________________________________________*/
@@ -169,16 +141,13 @@ private:
     Thread_List m_fd_array;
 
     // <socket, information>
-    Thread_Map<int, struct s_socket_client> m_client_list;
+    Thread_Map<int, ClientInfo> m_client_list;
 
     // <userID, information>
-    Thread_Map<std::string, struct s_user_Information> m_users;
+    Thread_Map<std::string, UserInfo> m_users;
 
     // Task
-    Thread_Queue<s_event_task> m_queue_task;
-    std::condition_variable m_condition_task;
-    bool m_new_task = false;
-    std::mutex m_mutex_newTask;
+    Thread_Queue<EventTask> m_queue_task;
 
     // thread pool
     std::shared_ptr<ThreadPool> m_threadPool;

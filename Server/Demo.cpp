@@ -21,6 +21,8 @@
 #include "Server_Interface.hpp"
 #include "Server_impl.hpp"
 #include <chrono>
+#include <cstdio>
+#include <cstring>
 #include <memory>
 #include <thread>
 
@@ -28,7 +30,12 @@ using namespace Log;
 
 /*______ D E F I N E _________________________________________________________*/
 
-#define COMMOND_1 "1"
+#define COMMOND_TEST "test"
+#define COMMOND_LOG_LEVEL_NONE "log_none"
+#define COMMOND_LOG_LEVEL_ERROR "log_error"
+#define COMMOND_LOG_LEVEL_WARN "log_warn"
+#define COMMOND_LOG_LEVEL_INFO "log_info"
+#define COMMOND_LOG_LEVEL_DEBUG "log_debug"
 
 /*______ V A R I A B L E _____________________________________________________*/
 
@@ -56,21 +63,46 @@ void signalHandler(int signum)
     }
 
     //
-    LogSystem::instance()->del_object();
     Mysql::instance()->del_object();
+    LogSystem::instance()->del_object();
 
     exit(signum);
 }
 
 void Commond_handle(char *_commond)
 {
-    if (memcmp(_commond, COMMOND_1, 1) == 0)
+    if (memcmp(_commond, COMMOND_TEST, strlen(COMMOND_TEST)) == 0)
     {
-        printf("COMMOND_TEST : 1\n");
+        Log_debug("COMMOND: test");
+    }
+    else if (memcmp(_commond, COMMOND_LOG_LEVEL_NONE, strlen(COMMOND_LOG_LEVEL_NONE)) == 0)
+    {
+        Log_debug("COMMOND: log_none");
+        LogSystem::instance()->Log_set_LogLevel(0);
+    }
+    else if (memcmp(_commond, COMMOND_LOG_LEVEL_ERROR, strlen(COMMOND_LOG_LEVEL_ERROR)) == 0)
+    {
+        Log_debug("COMMOND: log_error");
+        LogSystem::instance()->Log_set_LogLevel(1);
+    }
+    else if (memcmp(_commond, COMMOND_LOG_LEVEL_WARN, strlen(COMMOND_LOG_LEVEL_WARN)) == 0)
+    {
+        Log_debug("COMMOND: log_warn");
+        LogSystem::instance()->Log_set_LogLevel(2);
+    }
+    else if (memcmp(_commond, COMMOND_LOG_LEVEL_INFO, strlen(COMMOND_LOG_LEVEL_INFO)) == 0)
+    {
+        Log_debug("COMMOND: log_info");
+        LogSystem::instance()->Log_set_LogLevel(3);
+    }
+    else if (memcmp(_commond, COMMOND_LOG_LEVEL_DEBUG, strlen(COMMOND_LOG_LEVEL_DEBUG)) == 0)
+    {
+        Log_debug("COMMOND: log_debug");
+        LogSystem::instance()->Log_set_LogLevel(4);
     }
     else
     {
-        printf("NO COMMOND\n");
+        Log_debug("NO COMMOND");
     }
 }
 

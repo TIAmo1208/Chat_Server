@@ -11,6 +11,7 @@
 
 /*______ I N C L U D E - F I L E S ___________________________________________*/
 
+#include <atomic>
 #include <cstring>
 #include <mutex>
 #include <stdarg.h> // parameter list
@@ -51,7 +52,7 @@ std::string m_logFileName = "";
 
 std::mutex m_mutex;
 
-int m_log_level = LOG_LEVEL_INFO;
+std::atomic<int> m_log_level;
 
 int m_outputTime = 10;
 
@@ -72,7 +73,11 @@ void signalHandler(int signum)
 /*______ F U N C T I O N _____________________________________________________*/
 
 /// @brief default constructor
-LogSystem::LogSystem() { signal(SIGINT, signalHandler); }
+LogSystem::LogSystem()
+{
+    signal(SIGINT, signalHandler);
+    m_log_level = LOG_LEVEL_INFO;
+}
 
 /// @brief destructor
 LogSystem::~LogSystem()
@@ -122,13 +127,14 @@ void LogSystem::Log_init(int _log_level, bool _log_file_enable, std::string _fil
         return;
     }
 
-    m_log_level  = _log_level;
+    m_log_level.store(_log_level);
     m_outputFile = _log_file_enable;
     m_filePath   = _filePath;
 
     m_logTools = new Log_Tools();
     m_logTools->Log_Tools_Init(m_outputFile, _filePath);
-    log_info("Log: Init done, log level:%d, file path:%s, output:%s, ", m_log_level, m_filePath.c_str(), m_outputFile ? "true" : "false");
+    log_info("Log: Init done, log level:%d, file path:%s, output:%s, ", m_log_level.load(), m_filePath.c_str(),
+             m_outputFile ? "true" : "false");
 
     m_initState = true;
 }
@@ -366,7 +372,7 @@ void LogSystem::Log_set_FilePath(std::string &filePath)
 
 /// @brief set log level
 /// @param _level
-void LogSystem::Log_set_LogLevel(int _level) { m_log_level = _level; }
+void LogSystem::Log_set_LogLevel(int _level) { m_log_level.store(_level); }
 
 /// @brief set the log output time
 /// @param _seconds The default time is 10 seconds
