@@ -13,6 +13,7 @@
 
 #include "config.h"
 
+#include <algorithm>
 #include <cstring>
 #include <fstream>
 #include <map>
@@ -37,7 +38,7 @@ using namespace CONFIG;
 #define Node_Type_Bool 3
 
 const char COMMOND_PATH[] = "./Commond";
-#define COMMOND_MAX_SIZE 8
+#define COMMOND_MAX_SIZE 16
 
 /*______ V A R I A B L E _____________________________________________________*/
 
@@ -71,17 +72,17 @@ void getCommond()
     // 获取文件状态
     struct stat fileState;
     fstat(fd, &fileState);
-    off_t fileSize = fileState.st_size;
     char buffer[COMMOND_MAX_SIZE];
+    memset(buffer, 0, COMMOND_MAX_SIZE);
 
     while (!m_stop)
     {
         // 读取大小为空
-        while (fileSize == 0)
+        fstat(fd, &fileState);
+        while (fileState.st_size == 0)
         {
             std::this_thread::sleep_for(std::chrono::seconds(1));
             fstat(fd, &fileState);
-            fileSize = fileState.st_size;
 
             if (m_stop)
             {
@@ -95,25 +96,29 @@ void getCommond()
         }
 
         // 读取文件内容
-        int len = read(fd, buffer, fileSize);
+        if (lseek(fd, 0, SEEK_SET) == -1)
+        {
+            printf("File lseek Fail\n");
+        }
+        int len = read(fd, buffer, COMMOND_MAX_SIZE);
         if (len == -1)
         {
-            printf("读取错误\n");
+            printf("File Read Fail\n");
         }
 
         // 判断代码类型
         if (m_Handle_Function != nullptr)
         {
-            (*m_Handle_Function)(buffer);
+            (*m_Handle_Function)(std::move(buffer));
         }
+        memset(buffer, 0, COMMOND_MAX_SIZE);
 
         if (fcntl(fd, F_GETFD) < 0)
         {
-            printf("获取文件描述符状态失败\n");
+            printf("Get File Descriptor Status Fail\n");
         }
         // 截断文件大小
         ftruncate(fd, 0);
-        fileSize = 0;
     }
 
     close(fd);
