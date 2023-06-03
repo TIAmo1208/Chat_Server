@@ -16,6 +16,8 @@ using namespace Log;
 
 /*______ D E F I N E _________________________________________________________*/
 
+#define CODE_MIN_SIZE 4
+
 #define CODE_CONNECT_SERVER 0000    // 客户端登录
 #define CODE_CONNECT_CLIENT 0001    // 连接其他客户端
 #define CODE_SEND_MESSAGE 0002      // 客户端发送信息
@@ -246,9 +248,13 @@ void Server_impl::Server_Receive_Event(fd_set _readfds)
             Server_Disconnect_Client(i);
             continue;
         }
-        Log_debug("Server_Receive_Event: recvBuff: %s", recvBuff);
-        str_recvBuff = recvBuff;
+        Log_debug("Server_Receive_Event: recvBuff:%s, length:%d", recvBuff, strlen(recvBuff));
         temp_count++;
+        if (strlen(recvBuff) < CODE_MIN_SIZE)
+        {
+            continue;
+        }
+        str_recvBuff = recvBuff;
 
         //
         EventTask task = std::make_shared<s_event_task>();
